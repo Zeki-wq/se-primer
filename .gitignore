@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+package-lock.json.bak
+.venv/
+venv/
+env/
+__pycache__/
+
+# Environment and secrets
+.env
+.env.*
+*.local
+*.key
+*.pem
+*.token
+
+# Logs & Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Cypress exclusions (keep only verified demo artifacts)
+cypress/videos/*.tmp

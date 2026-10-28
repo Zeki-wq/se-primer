@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="tr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SE Primer: Yazılım Mühendisliği, Oynanan Bir Kitap</title>
+  <style>
+    /* ==========================================================================
+       GOOGLE STITCH MOBİL ÖNCELİKLİ (430x844) KARANLIK MOD TASARIM SİSTEMİ
+       Harici CDN gerektirmeden %100 bağımsız çalışan tam kapsamlı CSS
+       ========================================================================== */
+    :root {
+      --bg-outer: #060A17;
+      --bg-navy: #0B132B;
+      --bg-card: #131F42;
+      --bg-card-hover: #1C2D5A;
+      --border-slate: #1E293B;
+      --accent-orange: #F77F00;
+      --accent-orange-hover: #FF921C;
+      --accent-emerald: #10B981;
+      --accent-danger: #EF4444;
+      --text-white: #F8FAFC;
+      --text-slate-200: #E2E8F0;
+      --text-slate-300: #CBD5E1;
+      --text-slate-400: #94A3B8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-outer);
+      color: var(--text-white);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .font-mono, code, pre {
+      font-family: 'JetBrains Mono', 'Fira Code', Consolas, 'Courier New', monospace;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Üst Telemetri Barı */
+    .top-telemetry-header {
+      background-color: rgba(11, 19, 43, 0.95);
+      border-bottom: 1px solid var(--border-slate);
+      padding: 8px 14px;
+    }
+    .top-telemetry-inner {
+      max-width: 430px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand-cluster {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background-color: rgba(247, 127, 0, 0.18);
+      border: 1px solid rgba(247, 127, 0, 0.55);
+      color: var(--accent-orange);
+      font-weight: 800;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .state-pill {
+      background-color: rgba(16, 185, 129, 0.16);
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      color: var(--accent-emerald);
+      padding: 3px 9px;
+      border-radius: 8px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    /* Ana Mobil Çerçeve (430x844 Viewport Uyumlu) */
+    .app-main {
+      padding: 8px 10px 16px;
+      display: flex;
+      justify-content: center;
+    }
+    .mobile-shell {
+      width: 100%;
+      max-width: 410px;
+      min-height: 760px;
+      background-color: var(--bg-navy);
+      border-radius: 28px;
+      border: 3px solid var(--border-slate);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    button:focus-visible,
+    input:focus-visible {
+      outline: 2px solid var(--accent-orange);
+      outline-offset: 2px;
+    }
+
+    p, span, h1, h2, pre {
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    @media (max-width: 380px) {
+      .app-main {
+        padding: 4px;
+      }
+      .mobile-shell {
+        border-radius: 18px;
+        min-height: auto;
+      }
+      .screen-section {
+        padding: 10px;
+      }
+      .grid-4 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* Telefon Üst Durum Çubuğu */
+    .phone-status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 18px 6px;
+      font-size: 11px;
+      color: var(--text-slate-400);
+      border-bottom: 1px solid rgba(30, 41, 59, 0.6);
+    }
+    .phone-notch {
+      width: 76px;
+      height: 12px;
+      border-radius: 999px;
+      background-color: #040711;
+      border: 1px solid #1E293B;
+    }
+
+    /* Ekran Konteynerleri */
+    .screen-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 14px;
+      gap: 10px;
+    }
+
+    /* Kartlar */
+    .card-surface {
+      background-color: rgba(19, 31, 66, 0.78);
+      border: 1px solid #233565;
+      border-radius: 16px;
+      padding: 12px;
+    }
+    .card-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 7px;
+      gap: 6px;
+    }
+    .badge-orange {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background-color: rgba(247, 127, 0, 0.16);
+      border: 1px solid rgba(247, 127, 0, 0.45);
+      color: var(--accent-orange);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 999px;
+    }
+    .badge-emerald {
+      background-color: rgba(16, 185, 129, 0.16);
+      border: 1px solid rgba(16, 185, 129, 0.45);
+      color: var(--accent-emerald);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    h1.hero-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: #FFFFFF;
+      line-height: 1.3;
+      margin-bottom: 5px;
+    }
+    .text-body {
+      font-size: 12px;
+      color: var(--text-slate-200);
+      line-height: 1.45;
+    }
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-slate-200);
+    }
+
+    /* Seçim Izgaraları */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+    .grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .stack-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    /* Seçilebilir Butonlar */
+    button {
+      cursor: pointer;
+      font-family: inherit;
+      color: inherit;
+      background: none;
+      border: none;
+    }
+    .selectable-card {
+      background-color: var(--bg-navy);
+      border: 1.5px solid #2A3C6E;
+      border-radius: 12px;
+      padding: 9px 10px;
+      text-align: left;
+      transition: all 0.15s ease;
+      width: 100%;
+    }
+    .selectable-card:hover {
+      border-color: #475569;
+    }
+    .selectable-card.selected-emerald {
+      border: 2px solid var(--accent-emerald);
+      background-color: rgba(16, 185, 129, 0.15);
+    }
+    .selectable-card.selected-orange {
+      border: 2px solid var(--accent-orange);
+      background-color: rgba(247, 127, 0, 0.15);
+    }
+
+    /* Ana CTA Butonu (Nöbete Başla & Tekrar Oyna) */
+    .btn-primary-orange {
+      width: 100%;
+      background-color: var(--accent-orange);
+      color: #060A17;
+      font-weight: 800;
+      font-size: 14px;
+      padding: 13px 16px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      box-shadow: 0 6px 20px rgba(247, 127, 0, 0.28);
+      transition: background-color 0.15s ease;
+    }
+    .btn-primary-orange:hover {
+      background-color: var(--accent-orange-hover);
+    }
+
+    /* Kriz Üst Barı */
+    .crisis-top-banner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background-color: rgba(127, 29, 29, 0.32);
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      border-radius: 14px;
+      padding: 9px 12px;
+    }
+    .timer-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background-color: rgba(247, 127, 0, 0.2);
+      border: 2px solid var(--accent-orange);
+      color: var(--accent-orange);
+      padding: 4px 9px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    /* İlerleme Çubuğu */
+    .progress-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      margin-top: 7px;
+    }
+    .prog-segment {
+      height: 5px;
+      border-radius: 999px;
+      background-color: #1E293B;
+    }
+    .prog-segment.done {
+      background-color: var(--accent-emerald);
+    }
+    .prog-segment.active {
+      background-color: var(--accent-orange);
+    }
+
+    /* Ara Geri Bildirim Kutusu (feedback-box) */
+    .feedback-alert-box {
+      background-color: #131F42;
+      border: 2px solid var(--accent-orange);
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+
+    /* Terminal Log Kutusu */
+    .terminal-box {
+      background-color: #060A17;
+      border: 1px solid #1E293B;
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-slate-300);
+    }
+    .terminal-header {
+      display: flex;
+      justify-content: space-between;
+      border-bottom: 1px solid #1E293B;
+      padding-bottom: 4px;
+      margin-bottom: 5px;
+      color: var(--text-slate-400);
+      font-size: 10px;
+    }
+
+    /* İpucu Kutusu (hint-box) */
+    .hint-callout {
+      background-color: rgba(16, 185, 129, 0.14);
+      border: 1.5px solid rgba(16, 185, 129, 0.65);
+      border-radius: 12px;
+      padding: 9px 11px;
+      margin-top: 8px;
+    }
+
+    /* Karar Butonları (Choice A & Choice B) */
+    .choice-btn {
+      width: 100%;
+      background-color: #131F42;
+      border-radius: 14px;
+      padding: 10px 12px;
+      text-align: left;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      transition: all 0.15s ease;
+    }
+    .choice-btn-a {
+      border: 2px solid rgba(16, 185, 129, 0.78);
+    }
+    .choice-btn-a:hover {
+      background-color: rgba(16, 185, 129, 0.14);
+      border-color: var(--accent-emerald);
+    }
+    .choice-btn-b {
+      border: 2px solid rgba(247, 127, 0, 0.78);
+    }
+    .choice-btn-b:hover {
+      background-color: rgba(247, 127, 0, 0.14);
+      border-color: var(--accent-orange);
+    }
+    .choice-letter {
+      width: 24px;
+      height: 24px;
+      border-radius: 7px;
+      font-weight: 800;
+      font-size: 12px;
+      color: #060A17;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .letter-a { background-color: var(--accent-emerald); }
+    .letter-b { background-color: var(--accent-orange); }
+
+    /* Sokratik AI Tutor Çekmecesi */
+    .tutor-drawer {
+      background-color: #060A17;
+      border: 1px solid #1E293B;
+      border-radius: 14px;
+      padding: 10px 12px;
+    }
+    .tutor-bubble {
+      background-color: var(--bg-navy);
+      border: 1px solid rgba(16, 185, 129, 0.35);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 11.5px;
+      font-style: italic;
+      color: #D1FAE5;
+      margin: 6px 0;
+    }
+    .tutor-input-row {
+      display: flex;
+      gap: 6px;
+    }
+    .tutor-text-input {
+      flex: 1;
+      background-color: var(--bg-navy);
+      border: 1px solid #334155;
+      border-radius: 9px;
+      padding: 7px 10px;
+      font-size: 11.5px;
+      color: #FFFFFF;
+      outline: none;
+    }
+    .tutor-text-input:focus {
+      border-color: var(--accent-emerald);
+    }
+    .tutor-send-btn {
+      background-color: var(--accent-emerald);
+      color: #060A17;
+      font-weight: 800;
+      font-size: 11.5px;
+      padding: 7px 13px;
+      border-radius: 9px;
+    }
+
+    /* Sonuç Kartı Temaları */
+    .ending-card-emerald {
+      background-color: rgba(16, 185, 129, 0.12);
+      border: 2px solid var(--accent-emerald);
+      border-radius: 16px;
+      padding: 14px;
+    }
+    .ending-card-orange {
+      background-color: rgba(247, 127, 0, 0.14);
+      border: 2px solid var(--accent-orange);
+      border-radius: 16px;
+      padding: 14px;
+    }
+    .ending-card-red {
+      background-color: rgba(239, 68, 68, 0.15);
+      border: 2px solid var(--accent-danger);
+      border-radius: 16px;
+      padding: 14px;
+    }
+    .pathway-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background-color: var(--bg-navy);
+      border: 1px solid #1E293B;
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Üst Durum Makinesi (FSM) Telemetri Çubuğu -->
+  <header class="top-telemetry-header">
+    <div class="top-telemetry-inner">
+      <div class="brand-cluster">
+        <div class="brand-logo font-mono">SE</div>
+        <span style="font-size: 12px; font-weight: 700;">SE Primer SPA</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <span class="font-mono" style="font-size: 11px; color: #94A3B8;">STATE:</span>
+        <span
+          id="current-state-badge"
+          data-testid="current-state"
+          class="state-pill font-mono"
+        >ONBOARDING</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Ana Mobil Uygulama Çerçevesi (430x844 Viewport) -->
+  <main class="app-main" data-testid="app-container">
+    <div class="mobile-shell">
+
+      <!-- Telefon Üst Durum Çubuğu -->
+      <div class="phone-status-bar font-mono">
+        <span id="top-bar-time">08:00</span>
+        <div class="phone-notch"></div>
+        <span style="color: #10B981;">MHC-PMS • 5G</span>
+      </div>
+
+      <!-- ================================================================= -->
+      <!-- STATE 1: ONBOARDING (GİRİŞ VE KİŞİSELLEŞTİRME EKRANI)             -->
+      <!-- ================================================================= -->
+      <section
+        id="screen-onboarding"
+        data-testid="onboarding-screen"
+        class="screen-section"
+      >
+        <div class="stack-list" style="gap: 10px;">
+          <!-- Başlık Kartı -->
+          <div class="card-surface">
+            <div class="card-header-row">
+              <span class="badge-orange font-mono">PAZARTESİ 08:00 • SENARYO #01</span>
+              <span class="font-mono" style="font-size: 11px; color: #10B981;">FSM v1.0</span>
+            </div>
+            <h1 data-testid="app-title" class="hero-title">
+              SE Primer: Yazılım Mühendisliği, Oynanan Bir Kitap
+            </h1>
+            <p class="text-body">
+              Hastane randevu sistemi (<code style="color: #10B981;">MHC-PMS</code>) dün geceki yeni sürüm geçişinden sonra çöktü. <strong style="color: #F77F00;">300 hasta</strong> bekliyor ve nöbetçi yazılım mühendisi sensin.
+            </p>
+          </div>
+
+          <!-- SORU 1: Deneyim Seviyesi -->
+          <div class="card-surface">
+            <div class="card-header-row">
+              <span class="section-label font-mono">1. Seviye Seçimi</span>
+              <span id="onboarding-rule-preview" class="font-mono" style="font-size: 11px; color: #10B981;">
+                💡 İpucu Kutusu Açık • Süresiz
+              </span>
+            </div>
+            <div class="grid-2">
+              <button
+                type="button"
+                id="btn-level-beginner"
+                data-testid="level-beginner"
+                onclick="SEPrimerApp.selectLevel('beginner')"
+                class="selectable-card selected-emerald"
+              >
+                <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700;">
+                  <span>Yeni Başladım</span>
+                  <span>🌱</span>
+                </div>
+                <div class="font-mono" style="font-size: 10.5px; color: #CBD5E1; margin-top: 3px;">
+                  İpucu Açık • Süresiz
+                </div>
+              </button>
+
+              <button
+                type="button"
+                id="btn-level-experienced"
+                data-testid="level-experienced"
+                onclick="SEPrimerApp.selectLevel('experienced')"
+                class="selectable-card"
+              >
+                <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700;">
+                  <span>Deneyimliyim</span>
+                  <span>⚡</span>
+                </div>
+                <div class="font-mono" style="font-size: 10.5px; color: #F77F00; margin-top: 3px;">
+                  60sn Geri Sayım
+                </div>
+              </button>
+            </div>
+          </div>
+
+          <!-- SORU 2: Mühendislik Rolü -->
+          <div class="card-surface">
+            <div class="card-header-row">
+              <span class="section-label font-mono">2. Mühendislik Rolü</span>
+              <span class="font-mono" style="font-size: 11px; color: #94A3B8;">Telemetri Log Odağı</span>
+            </div>
+            <div class="grid-4">
+              <button
+                type="button"
+                id="btn-role-backend"
+                data-testid="role-backend"
+                onclick="SEPrimerApp.selectRole('Backend')"
+                class="selectable-card selected-emerald"
+                style="text-align: center; padding: 8px 4px;"
+              >
+                <div class="font-mono" style="font-size: 12px; font-weight: 700;">{ }</div>
+                <div style="font-size: 11px; font-weight: 600; margin-top: 2px;">Backend</div>
+              </button>
+
+              <button
+                type="button"
+                id="btn-role-devops"
+                data-testid="role-devops"
+                onclick="SEPrimerApp.selectRole('DevOps')"
+                class="selectable-card"
+                style="text-align: center; padding: 8px 4px;"
+              >
+                <div class="font-mono" style="font-size: 12px; font-weight: 700;">⚙️</div>
+                <div style="font-size: 11px; font-weight: 600; margin-top: 2px;">DevOps</div>
+              </button>
+
+              <button
+                type="button"
+                id="btn-role-qa"
+                data-testid="role-qa"
+                onclick="SEPrimerApp.selectRole('QA')"
+                class="selectable-card"
+                style="text-align: center; padding: 8px 4px;"
+              >
+                <div class="font-mono" style="font-size: 12px; font-weight: 700;">🛡️</div>
+                <div style="font-size: 11px; font-weight: 600; margin-top: 2px;">QA</div>
+              </button>
+
+              <button
+                type="button"
+                id="btn-role-fullstack"
+                data-testid="role-fullstack"
+                onclick="SEPrimerApp.selectRole('Fullstack')"
+                class="selectable-card"
+                style="text-align: center; padding: 8px 4px;"
+              >
+                <div class="font-mono" style="font-size: 12px; font-weight: 700;">🌐</div>
+                <div style="font-size: 11px; font-weight: 600; margin-top: 2px;">Fullstack</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- SORU 3: Öğrenme Hedefi -->
+          <div class="card-surface">
+            <div class="card-header-row">
+              <span class="section-label font-mono">3. Öğrenme Hedefi</span>
+              <span class="font-mono" style="font-size: 11px; color: #94A3B8;">Odak Noktası</span>
+            </div>
+            <div class="stack-list">
+              <button
+                type="button"
+                id="btn-goal-arch"
+                data-testid="goal-arch"
+                onclick="SEPrimerApp.selectGoal('Mimari & Kriz Yönetimi')"
+                class="selectable-card selected-orange"
+                style="display: flex; align-items: center; justify-content: space-between;"
+              >
+                <div>
+                  <div style="font-size: 11.5px; font-weight: 700;">Kriz Anında Mimari Karar (Rollback vs Hotfix)</div>
+                  <div class="font-mono" style="font-size: 10.5px; color: #CBD5E1;">Servis sürekliliği ve veritabanı şeması</div>
+                </div>
+                <span class="goal-dot font-mono" style="color: #F77F00; font-weight: 800;">●</span>
+              </button>
+
+              <button
+                type="button"
+                id="btn-goal-test"
+                data-testid="goal-test"
+                onclick="SEPrimerApp.selectGoal('Sıfır Hata & Smoke Test')"
+                class="selectable-card"
+                style="display: flex; align-items: center; justify-content: space-between;"
+              >
+                <div>
+                  <div style="font-size: 11.5px; font-weight: 700;">Canlı Geçiş Doğrulama & Smoke Test</div>
+                  <div class="font-mono" style="font-size: 10.5px; color: #94A3B8;">Kritik tablo çöküşlerini önleme</div>
+                </div>
+                <span class="goal-dot font-mono" style="color: #64748B;">○</span>
+              </button>
+
+              <button
+                type="button"
+                id="btn-goal-kvkk"
+                data-testid="goal-kvkk"
+                onclick="SEPrimerApp.selectGoal('KVKK & Veri Mahremiyeti')"
+                class="selectable-card"
+                style="display: flex; align-items: center; justify-content: space-between;"
+              >
+                <div>
+                  <div style="font-size: 11.5px; font-weight: 700;">KVKK & Hasta Verisi Maskeleme</div>
+                  <div class="font-mono" style="font-size: 10.5px; color: #94A3B8;">Hata loglarında anonimleştirme</div>
+                </div>
+                <span class="goal-dot font-mono" style="color: #64748B;">○</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Nöbete Başla Butonu -->
+        <button
+          type="button"
+          id="start-btn"
+          data-testid="start-btn"
+          onclick="SEPrimerApp.startGame()"
+          class="btn-primary-orange"
+        >
+          <span>Nöbete Başla</span>
+          <span class="font-mono" style="font-size: 12px;">→ [08:00]</span>
+        </button>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- STATES 2-4: KARAR EKRANI (DECISION_1_ARCH / 2_TEST / 3_KVKK)       -->
+      <!-- ================================================================= -->
+      <section
+        id="screen-decision"
+        data-testid="decision-screen"
+        class="screen-section hidden"
+      >
+        <!-- Üst Kriz Barı ve 60sn Sayaç -->
+        <div>
+          <div class="crisis-top-banner">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="width: 9px; height: 9px; border-radius: 999px; background-color: #EF4444; display: inline-block;"></span>
+              <div>
+                <h2
+                  id="crisis-header-title"
+                  data-testid="crisis-header"
+                  class="font-mono"
+                  style="font-size: 12px; font-weight: 800; color: #FFFFFF;"
+                >
+                  08:00 - Randevu Sistemi Çöktü
+                </h2>
+                <p
+                  id="crisis-step-subtitle"
+                  data-testid="decision-subtitle"
+                  class="font-mono"
+                  style="font-size: 10.5px; color: #CBD5E1;"
+                >
+                  KARAR 1/3 • MİMARİ MÜDAHALE
+                </p>
+              </div>
+            </div>
+
+            <!-- 60 Saniye Geri Sayım Sayacı (Deneyimliyim Modunda Aktif) -->
+            <div
+              id="countdown-timer"
+              data-testid="countdown-timer"
+              data-seconds="60"
+              class="timer-badge font-mono hidden"
+            >
+              <span>⏱️</span>
+              <span id="countdown-value">60s (01:00)</span>
+            </div>
+          </div>
+
+          <div class="progress-grid">
+            <div id="progress-bar-1" class="prog-segment active"></div>
+            <div id="progress-bar-2" class="prog-segment"></div>
+            <div id="progress-bar-3" class="prog-segment"></div>
+          </div>
+        </div>
+
+        <!-- Ara Geri Bildirim Kutusu ("Ne oldu, neden oldu?" - data-testid="feedback-box") -->
+        <div
+          id="step-feedback-box"
+          data-testid="feedback-box"
+          class="feedback-alert-box hidden"
+        >
+          <div data-testid="step-feedback-box">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
+              <span
+                id="step-feedback-title"
+                data-testid="step-feedback-title"
+                class="font-mono"
+                style="font-size: 11px; font-weight: 800; color: #F77F00;"
+              >
+                Ne Oldu, Neden Oldu?
+              </span>
+              <button
+                type="button"
+                data-testid="feedback-next-btn"
+                onclick="SEPrimerApp.dismissStepFeedback()"
+                class="font-mono"
+                style="background-color: #1E293B; padding: 2px 7px; border-radius: 6px; font-size: 10.5px; color: #E2E8F0;"
+              >
+                Tamam ✓
+              </button>
+            </div>
+            <p
+              id="step-feedback-what"
+              data-testid="step-feedback-what"
+              style="font-size: 11.5px; font-weight: 600; color: #FFFFFF;"
+            ></p>
+            <p
+              id="step-feedback-why"
+              data-testid="step-feedback-why"
+              style="font-size: 11px; color: #CBD5E1; margin-top: 2px;"
+            ></p>
+          </div>
+        </div>
+
+        <!-- Ana Kriz Hikaye Kartı, Terminal Log ve İpucu Kutusu -->
+        <div data-testid="narrative-card" class="card-surface">
+          <div class="card-header-row">
+            <span
+              id="active-role-badge"
+              data-testid="active-role-badge"
+              class="badge-emerald font-mono"
+            >
+              ROL: BACKEND
+            </span>
+            <span id="active-goal-badge" class="font-mono" style="font-size: 10.5px; color: #94A3B8;">
+              HEDEF: Mimari
+            </span>
+            <span class="font-mono" style="font-size: 11px; font-weight: 700; color: #F87171;">
+              👥 300 Hasta (<span id="crisis-clock">08:00</span>)
+            </span>
+          </div>
+
+          <p id="narrative-text" data-testid="narrative-text" class="text-body"></p>
+
+          <!-- Canlı Terminal Log Penceresi -->
+          <div class="terminal-box font-mono">
+            <div class="terminal-header">
+              <span>mhc-pms-production.log</span>
+              <span style="color: #F87171;">CRITICAL</span>
+            </div>
+            <pre
+              id="terminal-log-content"
+              data-testid="terminal-log"
+              style="white-space: pre-wrap;"
+            ></pre>
+          </div>
+
+          <!-- Açık Teknik İpucu Kutusu (Yeni Başladım Seçiliyse Açık Gelir) -->
+          <div id="hint-box" data-testid="hint-box" class="hint-callout">
+            <div class="font-mono" style="font-size: 11px; font-weight: 800; color: #10B981;">
+              💡 TEKNİK İPUCU KUTUSU (AÇIK)
+            </div>
+            <p
+              id="hint-box-text"
+              data-testid="hint-box-text"
+              style="font-size: 11.5px; color: #F8FAFC; margin-top: 3px;"
+            ></p>
+          </div>
+        </div>
+
+        <!-- Karar Seçenekleri (Choice A ve Choice B) -->
+        <div class="stack-list" style="gap: 8px;">
+          <button
+            type="button"
+            id="choice-a"
+            data-testid="choice-a"
+            onclick="SEPrimerApp.handleDecisionChoice('A', false)"
+            class="choice-btn choice-btn-a"
+          >
+            <span class="choice-letter letter-a font-mono">A</span>
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                <span id="choice-a-title" style="font-size: 12px; font-weight: 700; color: #FFFFFF;"></span>
+                <span id="choice-a-badge" class="font-mono" style="font-size: 10.5px; font-weight: 700; color: #10B981;"></span>
+              </div>
+              <p id="choice-a-desc" style="font-size: 11px; color: #CBD5E1; margin-top: 3px;"></p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            id="choice-b"
+            data-testid="choice-b"
+            onclick="SEPrimerApp.handleDecisionChoice('B', false)"
+            class="choice-btn choice-btn-b"
+          >
+            <span class="choice-letter letter-b font-mono">B</span>
+            <div style="flex: 1;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                <span id="choice-b-title" style="font-size: 12px; font-weight: 700; color: #FFFFFF;"></span>
+                <span id="choice-b-badge" class="font-mono" style="font-size: 10.5px; font-weight: 700; color: #F77F00;"></span>
+              </div>
+              <p id="choice-b-desc" style="font-size: 11px; color: #CBD5E1; margin-top: 3px;"></p>
+            </div>
+          </button>
+        </div>
+
+        <!-- Sokratik AI Tutor Çekmecesi -->
+        <div data-testid="tutor-panel" class="tutor-drawer">
+          <div style="display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span class="badge-emerald font-mono">AI</span>
+              <span class="font-mono" style="font-size: 11.5px; font-weight: 700;">Sokratik AI Tutor</span>
+            </div>
+            <span id="tutor-status-badge" class="font-mono" style="font-size: 10.5px; color: #10B981;">
+              Sokratik Mod Aktif
+            </span>
+          </div>
+
+          <div class="tutor-bubble">
+            <p id="tutor-response" data-testid="tutor-response"></p>
+          </div>
+
+          <div class="tutor-input-row">
+            <input
+              type="text"
+              id="tutor-input"
+              data-testid="tutor-input"
+              placeholder="AI Tutor'a sor (örn: Hangi şıkkı seçeyim?)"
+              class="tutor-text-input"
+            />
+            <button
+              type="button"
+              id="tutor-send"
+              data-testid="tutor-send"
+              onclick="SEPrimerApp.sendTutorMessage()"
+              class="tutor-send-btn font-mono"
+            >
+              Sor
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- STATES 5-7: SONUÇ EKRANI (ENDING_GOOD / BAD_KVKK / CRASH)         -->
+      <!-- ================================================================= -->
+      <section
+        id="screen-ending"
+        data-testid="ending-screen"
+        class="screen-section hidden"
+      >
+        <div class="stack-list" style="gap: 10px;">
+          <!-- Nihai Durum Kartı -->
+          <div id="ending-hero-card" class="ending-card-emerald">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <span
+                id="ending-state-code"
+                data-testid="ending-state-code"
+                class="font-mono"
+                style="background-color: #10B981; color: #060A17; font-size: 11px; font-weight: 800; padding: 3px 9px; border-radius: 7px;"
+              >
+                ENDING_GOOD
+              </span>
+              <span id="ending-status-pill" class="font-mono" style="font-size: 11px; font-weight: 700; color: #10B981;">
+                ONLINE • <span id="ending-clock">08:25</span>
+              </span>
+            </div>
+
+            <h2
+              id="ending-title"
+              data-testid="ending-title"
+              style="font-size: 15px; font-weight: 800; color: #FFFFFF; margin-top: 10px;"
+            >
+              SON A · İYİ — Sistem Ayakta, veri güvende
+            </h2>
+            <p
+              id="ending-subtitle"
+              data-testid="ending-subtitle"
+              style="font-size: 12px; color: #E2E8F0; margin-top: 5px;"
+            ></p>
+          </div>
+
+          <!-- Son Kararın Ara Geri Bildirimi -->
+          <div id="ending-last-step-feedback" class="card-surface">
+            <span
+              id="ending-last-fb-title"
+              class="font-mono"
+              style="font-size: 11px; font-weight: 800; color: #F77F00;"
+            ></span>
+            <p id="ending-last-fb-what" style="font-size: 11.5px; color: #FFFFFF; margin-top: 4px;"></p>
+            <p id="ending-last-fb-why" style="font-size: 11px; color: #CBD5E1; margin-top: 2px;"></p>
+          </div>
+
+          <!-- Teknik Analiz Kutusu ("Ne oldu? Neden oldu?") -->
+          <div data-testid="ending-breakdown" class="card-surface">
+            <div class="card-header-row">
+              <span class="font-mono" style="font-size: 11px; font-weight: 800; color: #F77F00;">
+                🔍 Teknik Analiz: Ne Oldu? Neden Oldu?
+              </span>
+              <span class="font-mono" style="font-size: 10.5px; color: #94A3B8;">Post-Mortem</span>
+            </div>
+            <p id="ending-what-text" data-testid="ending-what" style="font-size: 11.5px; color: #FFFFFF;"></p>
+            <p id="ending-why-text" data-testid="ending-why" style="font-size: 11.5px; color: #CBD5E1; margin-top: 5px;"></p>
+          </div>
+
+          <!-- 3 Kararın Görsel Yol Özeti -->
+          <div data-testid="pathway-summary" class="card-surface">
+            <div class="card-header-row">
+              <span class="section-label font-mono">🧭 Karar Yolu Özeti (FSM Geçmişi)</span>
+              <span class="font-mono" style="font-size: 11px; color: #10B981;">3 Karar Adımı</span>
+            </div>
+            <div id="pathway-summary-list" class="stack-list"></div>
+          </div>
+        </div>
+
+        <!-- Tekrar Oyna Butonu -->
+        <button
+          type="button"
+          id="restart-btn"
+          data-testid="restart-btn"
+          onclick="SEPrimerApp.restartGame()"
+          class="btn-primary-orange"
+        >
+          <span>↻ Tekrar Oyna</span>
+          <span class="font-mono" style="font-size: 12px;">[YENİ NÖBET]</span>
+        </button>
+      </section>
+
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

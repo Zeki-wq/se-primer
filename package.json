@@ -1,0 +1,13 @@
+{
+  "name": "se-primer",
+  "version": "1.0.0",
+  "description": "YZM301 Yazılım Gerçekleme ve Test — SE Primer: Yazılım Mühendisliği, Oynanan Bir Kitap",
+  "scripts": {
+    "test": "node -e \"delete process.env.ELECTRON_RUN_AS_NODE; const { spawnSync } = require('child_process'); const r = spawnSync('npx', ['cypress', 'run'], { stdio: 'inherit', shell: true }); process.exit(r.status || 0);\"",
+    "test:e2e": "node -e \"delete process.env.ELECTRON_RUN_AS_NODE; const { spawnSync } = require('child_process'); const r = spawnSync('npx', ['cypress', 'run'], { stdio: 'inherit', shell: true }); process.exit(r.status || 0);\"",
+    "cypress:open": "node -e \"delete process.env.ELECTRON_RUN_AS_NODE; const { spawnSync } = require('child_process'); const r = spawnSync('npx', ['cypress', 'open'], { stdio: 'inherit', shell: true }); process.exit(r.status || 0);\""
+  },
+  "devDependencies": {
+    "cypress": "^13.15.0"
+  }
+}
