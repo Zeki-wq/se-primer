@@ -1,0 +1,76 @@
+{
+  "model_version": "v2.0",
+  "model_name": "se-primer-adaptive-hint-predictor",
+  "model_type": "LogisticRegression",
+  "library": "scikit-learn",
+  "onnx_export_tool": "skl2onnx",
+  "training_seed": 42,
+  "dataset_version": "v2.0-synthetic-pedagogic-300",
+  "features": [
+    "seviye",
+    "karar_suresi_sn",
+    "onceki_yanlis_sayisi",
+    "ipucu_sayisi",
+    "sahne_no",
+    "karar_degistirme_sayisi"
+  ],
+  "feature_order_exact": [
+    "seviye",
+    "karar_suresi_sn",
+    "onceki_yanlis_sayisi",
+    "ipucu_sayisi",
+    "sahne_no",
+    "karar_degistirme_sayisi"
+  ],
+  "input_type": "tensor(float32)",
+  "input_shape": [1, 6],
+  "expected_input_schema": {
+    "seviye": "int: 0 (Yeni Başlayan), 1 (Orta Seviye), 2 (Deneyimli)",
+    "karar_suresi_sn": "float: saniye cinsinden karar süresi [0.1, 60.0]",
+    "onceki_yanlis_sayisi": "int: önceki adımlardaki riskli/yanlış karar sayısı [0, 2]",
+    "ipucu_sayisi": "int: adımda ve oturumda açılan/talep edilen kümülatif ipucu adedi [0, 10]",
+    "sahne_no": "int: FSM aktif sahne numarası (1: Mimari, 2: Test, 3: KVKK)",
+    "karar_degistirme_sayisi": "int: butonlar arası odak/seçim değiştirme (hesitation) sayısı [0, 10]"
+  },
+  "class_labels": {
+    "0": "İpucu Gerekmez",
+    "1": "İpucu Gerekir"
+  },
+  "target_column": "ipucu_gerekti",
+  "decision_threshold": 0.60,
+  "onnx_io": {
+    "input_name": "float_input",
+    "input_type": "tensor(float)",
+    "input_dimensions": ["None", 6],
+    "output_label_name": "label",
+    "output_label_type": "tensor(int64)",
+    "output_prob_name": "probabilities",
+    "output_prob_type": "tensor(float)",
+    "output_prob_dimensions": ["None", 2]
+  },
+  "metrics": {
+    "accuracy": 0.9867,
+    "precision": 1.0,
+    "recall": 0.9818,
+    "f1_score_pos": 0.9908,
+    "f1_score_macro": 0.9832,
+    "target_f1": 0.9908,
+    "decision_threshold": 0.60,
+    "f1_min_acceptance_threshold": 0.70,
+    "acceptance_result": "PASSED"
+  },
+  "oracle_verification": {
+    "scikit_learn_version": "1.7.2",
+    "onnxruntime_version": "1.31.1",
+    "max_absolute_difference": 9.784478605112668e-08,
+    "tolerance_threshold": 0.0001,
+    "status": "PASSED"
+  },
+  "dataset_metadata": {
+    "real_samples_count": 0,
+    "synthetic_samples_count": 300,
+    "total_samples": 300,
+    "is_fully_synthetic": true,
+    "privacy_standard": "Zero PII/PHI (GDPR/KVKK compliant)"
+  }
+}

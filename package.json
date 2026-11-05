@@ -1,10 +1,13 @@
 {
   "name": "se-primer",
-  "version": "1.0.0",
-  "description": "YZM301 Yazılım Gerçekleme ve Test — SE Primer: Yazılım Mühendisliği, Oynanan Bir Kitap",
+  "version": "2.0.0",
+  "description": "YZM301 Yazılım Gerçekleme ve Test — SE Primer v2: Yazılım Mühendisliği, Oynanan Bir Kitap",
   "scripts": {
+    "oracle": "python tests/parite.py",
     "test": "node -e \"delete process.env.ELECTRON_RUN_AS_NODE; const { spawnSync } = require('child_process'); const r = spawnSync('npx', ['cypress', 'run'], { stdio: 'inherit', shell: true }); process.exit(r.status || 0);\"",
-    "test:e2e": "node -e \"delete process.env.ELECTRON_RUN_AS_NODE; const { spawnSync } = require('child_process'); const r = spawnSync('npx', ['cypress', 'run'], { stdio: 'inherit', shell: true }); process.exit(r.status || 0);\"",
+    "test:e2e": "node -e \"delete process.env.ELECTRON_RUN_AS_NODE; const { spawnSync } = require('child_process'); const r = spawnSync('npx', ['cypress', 'run', '--spec', 'cypress/e2e/se_primer.cy.js'], { stdio: 'inherit', shell: true }); process.exit(r.status || 0);\"",
+    "test:parity": "node -e \"delete process.env.ELECTRON_RUN_AS_NODE; const { spawnSync } = require('child_process'); const r = spawnSync('npx', ['cypress', 'run', '--spec', 'cypress/e2e/se_primer_parity.cy.js'], { stdio: 'inherit', shell: true }); process.exit(r.status || 0);\"",
+    "test:all": "node -e \"const { spawnSync } = require('child_process'); console.log('1. Python Oracle Çalıştırılıyor...'); const py = spawnSync('python', ['tests/parite.py'], { stdio: 'inherit', shell: true }); if (py.status !== 0) process.exit(py.status || 1); console.log('2. Cypress E2E ve Parite Testleri Çalıştırılıyor...'); delete process.env.ELECTRON_RUN_AS_NODE; const cy = spawnSync('npx', ['cypress', 'run'], { stdio: 'inherit', shell: true }); process.exit(cy.status || 0);\"",
     "cypress:open": "node -e \"delete process.env.ELECTRON_RUN_AS_NODE; const { spawnSync } = require('child_process'); const r = spawnSync('npx', ['cypress', 'open'], { stdio: 'inherit', shell: true }); process.exit(r.status || 0);\""
   },
   "devDependencies": {

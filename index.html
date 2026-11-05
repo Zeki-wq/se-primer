@@ -490,6 +490,12 @@
       </div>
 
       <div style="display: flex; align-items: center; gap: 6px;">
+        <span
+          id="mode-badge"
+          data-testid="mode-badge"
+          class="font-mono"
+          style="font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 6px; background-color: #1E293B; color: #94A3B8;"
+        >NORMAL MOD</span>
         <span class="font-mono" style="font-size: 11px; color: #94A3B8;">STATE:</span>
         <span
           id="current-state-badge"
@@ -690,16 +696,30 @@
         </div>
 
         <!-- Nöbete Başla Butonu -->
-        <button
-          type="button"
-          id="start-btn"
-          data-testid="start-btn"
-          onclick="SEPrimerApp.startGame()"
-          class="btn-primary-orange"
-        >
-          <span>Nöbete Başla</span>
-          <span class="font-mono" style="font-size: 12px;">→ [08:00]</span>
-        </button>
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <button
+            type="button"
+            id="start-btn"
+            data-testid="start-btn"
+            onclick="SEPrimerApp.startGame()"
+            class="btn-primary-orange"
+          >
+            <span>Nöbete Başla</span>
+            <span class="font-mono" style="font-size: 12px;">→ [08:00]</span>
+          </button>
+
+          <!-- Veri Toplama Modu Aç/Kapa Butonu -->
+          <button
+            type="button"
+            id="toggle-telemetry-btn"
+            data-testid="toggle-telemetry-btn"
+            onclick="SEPrimerApp.toggleTelemetryMode()"
+            style="background: transparent; border: 1px dashed #334155; border-radius: 10px; color: #94A3B8; font-size: 11px; padding: 7px 12px; cursor: pointer; text-align: center;"
+            class="font-mono"
+          >
+            📊 Veri Toplama Modu: <span id="telemetry-status-text" style="color: #64748B; font-weight: 700;">KAPALI</span>
+          </button>
+        </div>
       </section>
 
       <!-- ================================================================= -->
@@ -790,6 +810,38 @@
               data-testid="step-feedback-why"
               style="font-size: 11px; color: #CBD5E1; margin-top: 2px;"
             ></p>
+
+            <!-- Veri Toplama Modu: Karar İpucu Öz-Değerlendirme Kartı -->
+            <div
+              id="telemetry-assessment-box"
+              data-testid="telemetry-assessment-box"
+              class="hidden"
+              style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(247, 127, 0, 0.4);"
+            >
+              <div class="font-mono" style="font-size: 10px; color: #F77F00; font-weight: 700;">
+                📊 ARAŞTIRMA ETİKETİ: Bu kararda teknik ipucuna ihtiyaç hissettiniz mi?
+              </div>
+              <div style="display: flex; gap: 8px; margin-top: 6px;">
+                <button
+                  type="button"
+                  id="btn-label-hint-yes"
+                  data-testid="btn-label-hint-yes"
+                  onclick="SEPrimerApp.recordHintSelfAssessment(1)"
+                  style="flex: 1; padding: 4px 8px; border-radius: 6px; font-size: 11px; background: rgba(247, 127, 0, 0.2); border: 1px solid #F77F00; color: #FFFFFF; cursor: pointer;"
+                >
+                  Evet (1)
+                </button>
+                <button
+                  type="button"
+                  id="btn-label-hint-no"
+                  data-testid="btn-label-hint-no"
+                  onclick="SEPrimerApp.recordHintSelfAssessment(0)"
+                  style="flex: 1; padding: 4px 8px; border-radius: 6px; font-size: 11px; background: rgba(16, 185, 129, 0.2); border: 1px solid #10B981; color: #FFFFFF; cursor: pointer;"
+                >
+                  Hayır (0)
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -826,16 +878,62 @@
             ></pre>
           </div>
 
-          <!-- Açık Teknik İpucu Kutusu (Yeni Başladım Seçiliyse Açık Gelir) -->
+          <!-- Açık Teknik İpucu Kutusu (Yeni Başladım Seçiliyse veya ML Modeli Tetiklerse Açık Gelir) -->
           <div id="hint-box" data-testid="hint-box" class="hint-callout">
-            <div class="font-mono" style="font-size: 11px; font-weight: 800; color: #10B981;">
-              💡 TEKNİK İPUCU KUTUSU (AÇIK)
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <div class="font-mono" style="font-size: 11px; font-weight: 800; color: #10B981;">
+                💡 TEKNİK İPUCU KUTUSU (AÇIK)
+              </div>
+              <span
+                id="adaptive-hint-badge"
+                data-testid="adaptive-hint-badge"
+                class="hidden font-mono"
+                style="font-size: 9.5px; padding: 2px 6px; border-radius: 4px; background: rgba(247, 127, 0, 0.2); border: 1px solid #F77F00; color: #F77F00; font-weight: 800;"
+              >
+                🤖 ADAPTİF YARDIM MODU
+              </span>
             </div>
             <p
               id="hint-box-text"
               data-testid="hint-box-text"
               style="font-size: 11.5px; color: #F8FAFC; margin-top: 3px;"
             ></p>
+          </div>
+
+          <!-- Geliştirici / ML Modeli Durum Paneli -->
+          <div
+            id="ml-dev-panel"
+            data-testid="ml-dev-panel"
+            class="card-surface"
+            style="margin-top: 8px; padding: 8px 10px; background: rgba(11, 19, 43, 0.7); border: 1px dashed #334155; border-radius: 10px;"
+          >
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+              <span class="font-mono" style="font-size: 10.5px; font-weight: 800; color: #10B981;">
+                ⚙️ ML ADAPTİF MODEL PANELİ
+              </span>
+              <span
+                id="ml-model-version"
+                data-testid="ml-model-version"
+                class="font-mono"
+                style="font-size: 10px; color: #94A3B8;"
+              >
+                v2.0 (ONNX)
+              </span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 6px; font-family: monospace; font-size: 10.5px;">
+              <div style="background: #060A17; padding: 4px 6px; border-radius: 6px; border: 1px solid #1E293B;">
+                <div style="color: #64748B; font-size: 9px;">İPUCU OLASILIĞI</div>
+                <div id="ml-prob-val" data-cy="p" style="font-weight: 800; color: #F77F00;">P = 0.00</div>
+              </div>
+              <div style="background: #060A17; padding: 4px 6px; border-radius: 6px; border: 1px solid #1E293B;">
+                <div style="color: #64748B; font-size: 9px;">EŞİK (THRESHOLD)</div>
+                <div id="ml-threshold-val" style="font-weight: 800; color: #94A3B8;">τ = 0.60</div>
+              </div>
+              <div style="background: #060A17; padding: 4px 6px; border-radius: 6px; border: 1px solid #1E293B;">
+                <div style="color: #64748B; font-size: 9px;">MODEL KARARI</div>
+                <div id="ml-decision-val" style="font-weight: 800; color: #10B981;">NORMAL (0)</div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -983,6 +1081,43 @@
             </div>
             <div id="pathway-summary-list" class="stack-list"></div>
           </div>
+
+          <!-- Veri Toplama Modu: Oturum Kayıt & CSV Dışa Aktarma Paneli -->
+          <div id="telemetry-export-card" data-testid="telemetry-export-card" class="card-surface hidden">
+            <div class="card-header-row">
+              <span class="font-mono" style="font-size: 11px; font-weight: 800; color: #10B981;">
+                📊 Veri Toplama Paneli (Gerçek Oturumlar)
+              </span>
+              <span id="collected-session-count" class="font-mono" style="font-size: 10.5px; color: #F77F00;">
+                0 Oturum
+              </span>
+            </div>
+            <p class="text-body" style="font-size: 11.5px; margin-top: 4px;">
+              Bu oturum anonim olarak kaydedildi. Toplanan gerçek oyuncu verilerini CSV olarak indirebilir veya kopyalayabilirsiniz.
+            </p>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button
+                type="button"
+                id="export-csv-btn"
+                data-testid="export-csv-btn"
+                onclick="SEPrimerApp.exportTelemetryCSV()"
+                style="flex: 1; padding: 7px 12px; border-radius: 8px; font-size: 11.5px; font-weight: 700; background: #10B981; color: #060A17; border: none; cursor: pointer;"
+                class="font-mono"
+              >
+                📥 oturumlar.csv İndir
+              </button>
+              <button
+                type="button"
+                id="clear-telemetry-btn"
+                data-testid="clear-telemetry-btn"
+                onclick="SEPrimerApp.clearCollectedTelemetry()"
+                style="padding: 7px 12px; border-radius: 8px; font-size: 11px; background: transparent; border: 1px solid #334155; color: #94A3B8; cursor: pointer;"
+                class="font-mono"
+              >
+                Temizle
+              </button>
+            </div>
+          </div>
         </div>
 
         <!-- Tekrar Oyna Butonu -->
@@ -1001,6 +1136,8 @@
     </div>
   </main>
 
+  <!-- ONNX Runtime Web Kütüphanesi (Yerel Çevrimdışı Kütüphane) -->
+  <script src="lib/ort.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

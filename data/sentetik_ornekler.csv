@@ -1,0 +1,11 @@
+oturum,sahne_no,seviye,karar_suresi_sn,onceki_yanlis_sayisi,ipucu_sayisi,karar_degistirme_sayisi,ipucu_gerekti,kaynak
+syn-001-a1b2,1,0,34.2,0,1,2,1,sentetik
+syn-001-a1b2,2,0,28.5,0,2,1,1,sentetik
+syn-001-a1b2,3,0,19.8,0,0,0,0,sentetik
+syn-002-c3d4,1,2,8.4,0,0,0,0,sentetik
+syn-002-c3d4,2,2,9.1,0,0,0,0,sentetik
+syn-002-c3d4,3,2,11.3,0,0,1,0,sentetik
+syn-003-e5f6,1,1,22.0,0,0,1,0,sentetik
+syn-003-e5f6,2,1,41.7,1,2,3,1,sentetik
+syn-003-e5f6,3,1,32.4,1,1,2,1,sentetik
+

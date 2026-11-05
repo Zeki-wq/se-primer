@@ -22,6 +22,9 @@ const SOCRATIC_SYSTEM_INSTRUCTION =
 // 3. MERKEZİ OYUN DURUMU (STATE)
 const gameState = {
   sessionId: 1,
+  sessionUuid: null, // Veri toplama modu için RFC 4122 v4 UUID
+  isTelemetryMode: false, // Veri toplama modu (URL: ?mode=collect veya buton)
+  telemetryRecords: [], // Mevcut oturumun adım kayıtları
   currentState: STATES.ONBOARDING,
   isTransitioning: false,
   profile: {
@@ -39,7 +42,27 @@ const gameState = {
   history: [],
   lastFeedback: null,
   tutorHistory: [],
-  geminiApiKey: ''
+  geminiApiKey: '',
+  // Aktif karar adımı telemetri sayaçları
+  currentStepTelemetry: {
+    startTime: null,
+    stepHesitationCount: 0,
+    stepTutorQueryCount: 0,
+    pendingRecordIndex: null
+  },
+  // ML Modeli ve Adaptif İpucu Durumu
+  ml: {
+    modelLoaded: false,
+    ortSession: null,
+    config: null,
+    lastProbability: 0.0,
+    threshold: 0.60,
+    isHelpMode: false,
+    inferenceIntervalId: null,
+    hfCommitSha: '657fdf4be40ecfa8cd5bf713f51c10df2de1f4b3',
+    modelUrl: 'https://huggingface.co/Raptor13/se-primer-hint-model/resolve/657fdf4be40ecfa8cd5bf713f51c10df2de1f4b3/model.onnx',
+    localFallbackUrl: 'model/model.onnx'
+  }
 };
 
 // 4. KARAR ADIMLARI VERİ HAVUZU (SENTETİK SENARYO & NÖTR SOKRATİK HAVUZ)
@@ -399,6 +422,8 @@ function updateOnboardingUI() {
 function startGame() {
   stopCountdown();
   gameState.sessionId += 1;
+  gameState.sessionUuid = generateAnonymousUUID();
+  gameState.telemetryRecords = [];
   gameState.isTransitioning = false;
   gameState.decisions = { arch: null, test: null, kvkk: null };
   gameState.history = [];
@@ -412,8 +437,8 @@ function startGame() {
  */
 function transitionToState(nextState) {
   stopCountdown();
+  stopAdaptiveInferenceLoop();
   gameState.currentState = nextState;
-  gameState.isTransitioning = false;
 
   const stateBadge = document.getElementById('current-state-badge');
   if (stateBadge) {
@@ -445,6 +470,11 @@ function transitionToState(nextState) {
     if (endingScreen) endingScreen.classList.remove('hidden');
     renderEndingScreen(nextState);
   }
+
+  // Geçiş tamamlandıktan sonra kilidi aç
+  setTimeout(() => {
+    gameState.isTransitioning = false;
+  }, 50);
 }
 
 /**
@@ -489,6 +519,14 @@ function updateTimerUI() {
   const timerBadge = document.getElementById('countdown-timer');
   const timerValue = document.getElementById('countdown-value');
   if (!timerBadge || !timerValue) return;
+
+  // Eğer ML yardım modundaysa süre baskısı kaldırılır (sayaç durdurulur / dondurulur)
+  if (gameState.ml && gameState.ml.isHelpMode) {
+    timerBadge.classList.remove('hidden');
+    timerValue.textContent = '⏸️ YARDIM MODU (SÜRE BASKISI KALDIRILDI)';
+    timerBadge.setAttribute('data-seconds', 'paused');
+    return;
+  }
 
   if (
     gameState.profile.level === 'experienced' &&
@@ -556,6 +594,12 @@ function renderDecisionScreen(stateKey) {
     hintBox.classList.add('hidden');
   }
 
+  // ML Modeli yardım modunu sıfırla ve periyodik çıkarımı başlat
+  gameState.ml.isHelpMode = false;
+  gameState.ml.lastProbability = 0.0;
+  updateMLDevPanel(0.0, false);
+  startAdaptiveInferenceLoop();
+
   updateTimerUI();
 
   document.getElementById('choice-a-title').textContent = data.choiceA.title;
@@ -565,6 +609,14 @@ function renderDecisionScreen(stateKey) {
   document.getElementById('choice-b-title').textContent = data.choiceB.title;
   document.getElementById('choice-b-badge').textContent = data.choiceB.badge;
   document.getElementById('choice-b-desc').textContent = data.choiceB.desc;
+
+  // Telemetri: Karar başlangıç zamanı ve tereddüt sayacını sıfırla
+  gameState.currentStepTelemetry = {
+    startTime: performance.now(),
+    stepHesitationCount: 0,
+    stepTutorQueryCount: 0,
+    pendingRecordIndex: null
+  };
 
   renderStepFeedbackBox();
 
@@ -598,6 +650,16 @@ function renderStepFeedbackBox() {
   titleEl.textContent = gameState.lastFeedback.title;
   whatEl.textContent = gameState.lastFeedback.what;
   whyEl.textContent = gameState.lastFeedback.why;
+
+  // Veri Toplama Modunda Araştırma Değerlendirmesini Göster
+  const assessBox = document.getElementById('telemetry-assessment-box');
+  if (assessBox) {
+    if (gameState.isTelemetryMode && gameState.currentStepTelemetry.pendingRecordIndex !== null) {
+      assessBox.classList.remove('hidden');
+    } else {
+      assessBox.classList.add('hidden');
+    }
+  }
 }
 
 function dismissStepFeedback() {
@@ -637,6 +699,9 @@ function handleDecisionChoice(choice, isTimeout = false) {
     gameState.isTransitioning = false;
     return;
   }
+
+  // Telemetri: Karar adımı telemetri kaydını oluştur
+  recordStepDecisionTelemetry(current, choice, isTimeout);
 
   if (current === STATES.DECISION_1_ARCH) {
     gameState.decisions.arch = choice;
@@ -857,6 +922,9 @@ function renderEndingScreen(endingState) {
       pathwayContainer.appendChild(itemDiv);
     });
   }
+
+  // Veri Toplama Modunda Oturum Sonucunu Kaydet ve İndirme Kartını Güncelle
+  finalizeSessionTelemetry(endingState);
 }
 
 /**
@@ -1282,6 +1350,489 @@ async function sendTutorMessage(customPrompt) {
 }
 
 // ============================================================================
+// VERİ TOPLAMA MODU & TELEMETRİ YÖNETİMİ (DATA COLLECTION & TELEMETRY MODULE)
+// ============================================================================
+
+/**
+ * RFC 4122 v4 Uyumlu Anonim Oturum UUID Üretici
+ * (Ad, e-posta, IP veya parmak izi asla tutulmaz)
+ */
+function generateAnonymousUUID() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+/**
+ * Seviye Metnini Sayısal Koda Dönüştür (0: beginner, 1: intermediate, 2: experienced)
+ */
+function getNumericLevelCode(levelStr) {
+  if (levelStr === 'experienced') return 2;
+  if (levelStr === 'intermediate') return 1;
+  return 0; // beginner
+}
+
+/**
+ * Karar Adımı Telemetrisini Kaydet
+ */
+function recordStepDecisionTelemetry(stateKey, choice, isTimeout) {
+  if (!gameState.sessionUuid) {
+    gameState.sessionUuid = generateAnonymousUUID();
+  }
+
+  const sahneMap = {
+    [STATES.DECISION_1_ARCH]: 1,
+    [STATES.DECISION_2_TEST]: 2,
+    [STATES.DECISION_3_KVKK]: 3
+  };
+  const sahneNo = sahneMap[stateKey] || 1;
+
+  // Karar süresi hesaplama
+  const durationSec = gameState.currentStepTelemetry.startTime
+    ? Math.max(0.1, Number(((performance.now() - gameState.currentStepTelemetry.startTime) / 1000).toFixed(2)))
+    : 10.0;
+
+  // Önceki yanlış sayısı (B seçimleri veya timeout)
+  const prevWrongCount = gameState.history.filter(h => h.choice === 'B' || h.isTimeout).length;
+
+  // İpucu sayısı: Tutor'a sorulan soru sayısı + açık ipucu kutusu durumu
+  const ipucuSayisi = gameState.currentStepTelemetry.stepTutorQueryCount +
+    (gameState.profile.level === 'beginner' ? 1 : 0);
+
+  const hesitationCount = gameState.currentStepTelemetry.stepHesitationCount || 0;
+
+  // Varsayılan kural tabanlı hedef etiketi (ground truth fallback):
+  // Uzun süre tereddüt, ipucu talebi veya riskli karar sonrası gecikme
+  let ipucuGerekti = 0;
+  if (
+    ipucuSayisi >= 1 ||
+    (durationSec > 30 && hesitationCount >= 2) ||
+    (prevWrongCount >= 1 && durationSec > 25)
+  ) {
+    ipucuGerekti = 1;
+  }
+
+  const record = {
+    oturum: gameState.sessionUuid,
+    sahne_no: sahneNo,
+    seviye: getNumericLevelCode(gameState.profile.level),
+    karar_suresi_sn: durationSec,
+    onceki_yanlis_sayisi: prevWrongCount,
+    ipucu_sayisi: ipucuSayisi,
+    karar_degistirme_sayisi: hesitationCount,
+    ipucu_gerekti: ipucuGerekti,
+    kaynak: 'gercek' // Gerçek oyuncu oturumu
+  };
+
+  const newIdx = gameState.telemetryRecords.length;
+  gameState.telemetryRecords.push(record);
+  gameState.currentStepTelemetry.pendingRecordIndex = newIdx;
+}
+
+/**
+ * Oyuncunun Öz-Değerlendirme Etiketi Bildirimi (Evet: 1 / Hayır: 0)
+ */
+function recordHintSelfAssessment(userLabel) {
+  const pIdx = gameState.currentStepTelemetry.pendingRecordIndex;
+  if (pIdx !== null && gameState.telemetryRecords[pIdx]) {
+    gameState.telemetryRecords[pIdx].ipucu_gerekti = Number(userLabel);
+  }
+  const assessBox = document.getElementById('telemetry-assessment-box');
+  if (assessBox) {
+    assessBox.innerHTML = '<div class="font-mono" style="font-size: 10.5px; color: #10B981;">✓ Geri bildiriminiz kaydedildi (Etiket: ' + userLabel + ')</div>';
+  }
+}
+
+/**
+ * Oturum Tamamlandığında Telemetriyi LocalStorage Havuzuna Kaydet
+ */
+function finalizeSessionTelemetry(endingState) {
+  if (!gameState.isTelemetryMode && !isTelemetryModeActive()) {
+    return;
+  }
+
+  if (gameState.telemetryRecords.length > 0) {
+    try {
+      const STORAGE_KEY = 'se_primer_collected_sessions_v2';
+      const existingRaw = localStorage.getItem(STORAGE_KEY);
+      let existingList = existingRaw ? JSON.parse(existingRaw) : [];
+      // Bu oturuma ait kayıtları ekle
+      existingList = existingList.concat(gameState.telemetryRecords);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(existingList));
+
+      // Paneli görünür yap ve sayacı güncelle
+      const panel = document.getElementById('telemetry-export-card');
+      const countEl = document.getElementById('collected-session-count');
+      if (panel) panel.classList.remove('hidden');
+      if (countEl) {
+        // Tekil oturum sayısını hesapla
+        const uniqueSessions = new Set(existingList.map(r => r.oturum)).size;
+        countEl.textContent = `${uniqueSessions} Gerçek Oturum (${existingList.length} Karar Satırı)`;
+      }
+    } catch (e) {
+      console.warn('LocalStorage telemetri kaydı hatası:', e);
+    }
+  }
+}
+
+/**
+ * Toplanan Gerçek Oturumları CSV Olarak Dışa Aktar (oturumlar.csv)
+ */
+function exportTelemetryCSV() {
+  const STORAGE_KEY = 'se_primer_collected_sessions_v2';
+  const existingRaw = localStorage.getItem(STORAGE_KEY);
+  let list = existingRaw ? JSON.parse(existingRaw) : [];
+
+  // Eğer oturum listesi boşsa en azından mevcut oturumu veya başlık satırını indir
+  if (list.length === 0 && gameState.telemetryRecords.length > 0) {
+    list = gameState.telemetryRecords;
+  }
+
+  const header = 'oturum,sahne_no,seviye,karar_suresi_sn,onceki_yanlis_sayisi,ipucu_sayisi,karar_degistirme_sayisi,ipucu_gerekti,kaynak';
+  const rows = list.map(r =>
+    `${r.oturum},${r.sahne_no},${r.seviye},${r.karar_suresi_sn},${r.onceki_yanlis_sayisi},${r.ipucu_sayisi},${r.karar_degistirme_sayisi},${r.ipucu_gerekti},${r.kaynak}`
+  );
+
+  const csvContent = [header, ...rows].join('\n') + '\n';
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', 'oturumlar.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Toplanan Telemetri Verisini Temizle
+ */
+function clearCollectedTelemetry() {
+  localStorage.removeItem('se_primer_collected_sessions_v2');
+  const countEl = document.getElementById('collected-session-count');
+  if (countEl) countEl.textContent = '0 Oturum';
+  alert('Toplanan telemetri verileri temizlendi.');
+}
+
+/**
+ * URL veya Buton Üzerinden Telemetri Modu Kontrolü
+ */
+function isTelemetryModeActive() {
+  if (typeof window !== 'undefined' && window.location) {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('mode') === 'collect' || params.get('telemetry') === '1') {
+      return true;
+    }
+  }
+  return gameState.isTelemetryMode;
+}
+
+/**
+ * Telemetri Modunu Aç/Kapat (Toggle)
+ */
+function toggleTelemetryMode() {
+  gameState.isTelemetryMode = !gameState.isTelemetryMode;
+  updateTelemetryModeUI();
+}
+
+function updateTelemetryModeUI() {
+  const badge = document.getElementById('mode-badge');
+  const toggleBtnText = document.getElementById('telemetry-status-text');
+  if (gameState.isTelemetryMode) {
+    if (badge) {
+      badge.textContent = 'VERİ TOPLAMA MODU';
+      badge.style.backgroundColor = '#047857';
+      badge.style.color = '#D1FAE5';
+    }
+    if (toggleBtnText) {
+      toggleBtnText.textContent = 'AÇIK (AKTİF)';
+      toggleBtnText.style.color = '#10B981';
+    }
+  } else {
+    if (badge) {
+      badge.textContent = 'NORMAL MOD';
+      badge.style.backgroundColor = '#1E293B';
+      badge.style.color = '#94A3B8';
+    }
+    if (toggleBtnText) {
+      toggleBtnText.textContent = 'KAPALI';
+      toggleBtnText.style.color = '#64748B';
+    }
+  }
+}
+
+// ============================================================================
+// ONNX RUNTIME WEB & ADAPTİF İPUCU TAHMİN MOTORU (ML INFERENCE MODULE)
+// ============================================================================
+
+/**
+ * ONNX Modelini ve config.json Dosyasını Yükle (Graceful Fallback Korumalı)
+ */
+async function initAdaptiveHintModel() {
+  try {
+    // 1. Config dosyasını yükle (aynı model sürümü)
+    try {
+      const cfgResp = await fetch('model/config.json');
+      if (cfgResp.ok) {
+        gameState.ml.config = await cfgResp.json();
+      }
+    } catch (e) {
+      console.warn('Yerel config.json okunamadı, varsayılan şema kullanılacak.');
+    }
+
+    if (!gameState.ml.config) {
+      gameState.ml.config = {
+        model_version: 'v2.0',
+        decision_threshold: 0.60,
+        features: [
+          'seviye',
+          'karar_suresi_sn',
+          'onceki_yanlis_sayisi',
+          'ipucu_sayisi',
+          'sahne_no',
+          'karar_degistirme_sayisi'
+        ]
+      };
+    }
+
+    // 2. onnxruntime-web kontrolü
+    if (typeof ort === 'undefined') {
+      console.warn('onnxruntime-web (ort) kütüphanesi bulunamadı. Kural tabanlı fallback aktif.');
+      return;
+    }
+
+    // 3. Modeli yükle (Öncelik: Yerel dosya -> Fallback: HF Sabit Commit SHA URL)
+    let session = null;
+    try {
+      session = await ort.InferenceSession.create(gameState.ml.localFallbackUrl);
+      console.log('✓ ONNX Modeli yerel depodan yüklendi:', gameState.ml.localFallbackUrl);
+    } catch (localErr) {
+      console.warn('Yerel model yüklenemedi, Hugging Face sabit commit SHA URL deneniyor...', localErr);
+      session = await ort.InferenceSession.create(gameState.ml.modelUrl);
+      console.log('✓ ONNX Modeli Hugging Face üzerinden yüklendi:', gameState.ml.modelUrl);
+    }
+
+    if (session) {
+      gameState.ml.ortSession = session;
+      gameState.ml.modelLoaded = true;
+      console.log('✓ ML Adaptif İpucu Motoru Hazır (v2.0)');
+    }
+  } catch (err) {
+    console.warn('[GÜVENLİ FALLBACK]: ONNX modeli yüklenemedi. Oyun standart FSM kurallarıyla kesintisiz çalışmaya devam ediyor:', err);
+    gameState.ml.modelLoaded = false;
+  }
+}
+
+/**
+ * Mevcut gameState Üzerinden 6 Özelliği Topla (config.json Kesin Sırasına Göre)
+ */
+function extractCurrentFeatures() {
+  const sahneMap = {
+    [STATES.DECISION_1_ARCH]: 1,
+    [STATES.DECISION_2_TEST]: 2,
+    [STATES.DECISION_3_KVKK]: 3
+  };
+  const sahneNo = sahneMap[gameState.currentState] || 1;
+
+  // Seviye kodu: 0=beginner, 1=intermediate, 2=experienced
+  const seviye = getNumericLevelCode(gameState.profile.level);
+
+  // Karar süresi (saniye)
+  const durationSec = gameState.currentStepTelemetry.startTime
+    ? Math.max(0.1, Number(((performance.now() - gameState.currentStepTelemetry.startTime) / 1000).toFixed(2)))
+    : 5.0;
+
+  // Önceki yanlış sayısı (riskli B kararları)
+  const prevWrongCount = gameState.history.filter(h => h.choice === 'B' || h.isTimeout).length;
+
+  // İpucu sayısı: Tutor'a sorulan soru sayısı + açık ipucu kutusu
+  const ipucuSayisi = gameState.currentStepTelemetry.stepTutorQueryCount +
+    (gameState.profile.level === 'beginner' ? 1 : 0);
+
+  const hesitationCount = gameState.currentStepTelemetry.stepHesitationCount || 0;
+
+  const featureMap = {
+    seviye: Number(seviye),
+    karar_suresi_sn: Number(durationSec),
+    onceki_yanlis_sayisi: Number(prevWrongCount),
+    ipucu_sayisi: Number(ipucuSayisi),
+    sahne_no: Number(sahneNo),
+    karar_degistirme_sayisi: Number(hesitationCount)
+  };
+
+  const featureList = (gameState.ml.config && gameState.ml.config.features)
+    ? gameState.ml.config.features
+    : ['seviye', 'karar_suresi_sn', 'onceki_yanlis_sayisi', 'ipucu_sayisi', 'sahne_no', 'karar_degistirme_sayisi'];
+
+  return featureList.map(name => featureMap[name] !== undefined ? featureMap[name] : 0.0);
+}
+
+/**
+ * ONNX Runtime veya Kural Tabanlı Fallback ile İpucu Olasılığını Hesapla
+ * @param {Array<number>} [customFeatures] - Parite testleri için doğrudan özellik vektörü
+ */
+async function predictHintNeedProbability(customFeatures = null) {
+  if (!customFeatures && !isDecisionState(gameState.currentState)) {
+    return 0.0;
+  }
+
+  const features = customFeatures || extractCurrentFeatures();
+
+  // 1. ONNX Runtime Web Çıkarımı
+  if (gameState.ml.modelLoaded && gameState.ml.ortSession && typeof ort !== 'undefined') {
+    try {
+      const inputTensor = new ort.Tensor('float32', new Float32Array(features), [1, 6]);
+      const feeds = { float_input: inputTensor };
+      const results = await gameState.ml.ortSession.run(feeds);
+      if (results && results.probabilities) {
+        // probabilities çıktısı: [1, 2] -> index 1: pozitif sınıf olasılığı
+        const prob = Number(results.probabilities.data[1]);
+        return Math.max(0.0, Math.min(1.0, prob));
+      }
+    } catch (e) {
+      console.warn('ONNX çıkarım hatası, fallback hesaplamaya geçiliyor:', e);
+    }
+  }
+
+  // 2. Güvenli Fallback Matematiksel Modeli (Sklearn katsayıları ile %100 birebir)
+  // [seviye, sure, prev_wrong, ipucu, sahne, hesitation]
+  const [lvl, dur, pw, hints, sahne, hes] = features;
+  
+  // Model katsayıları: Intercept = -3.7215423
+  let z = -3.7215423;
+  z += lvl * -3.467493072360591;
+  z += dur * 0.4267232716708538;
+  z += pw * 1.0550131358958794;
+  z += hints * 1.0470398535602081;
+  z += sahne * 0.3040520090023121;
+  z += hes * 1.2542179165284593;
+
+  const fallbackProb = 1.0 / (1.0 + Math.exp(-z));
+  return Math.max(0.0, Math.min(1.0, fallbackProb));
+}
+
+/**
+ * Adaptif Çıkarım Döngüsünü Başlat/Durdur
+ */
+function startAdaptiveInferenceLoop() {
+  stopAdaptiveInferenceLoop();
+  // Karar ekranına girildiğinde ilk anlık değerlendirme
+  runAdaptiveInferenceStep();
+  // Her 1.5 saniyede bir süre ve tereddüt değişimini değerlendir
+  gameState.ml.inferenceIntervalId = setInterval(() => {
+    runAdaptiveInferenceStep();
+  }, 1500);
+}
+
+function stopAdaptiveInferenceLoop() {
+  if (gameState.ml.inferenceIntervalId !== null) {
+    clearInterval(gameState.ml.inferenceIntervalId);
+    gameState.ml.inferenceIntervalId = null;
+  }
+}
+
+/**
+ * Tek Bir Adaptif Çıkarım Adımı ve UI Güncellemesi
+ */
+async function runAdaptiveInferenceStep() {
+  if (!isDecisionState(gameState.currentState)) {
+    stopAdaptiveInferenceLoop();
+    return;
+  }
+
+  const prob = await predictHintNeedProbability();
+  gameState.ml.lastProbability = prob;
+
+  const isHelpActive = prob >= gameState.ml.threshold;
+  gameState.ml.isHelpMode = isHelpActive;
+
+  updateMLDevPanel(prob, isHelpActive);
+
+  // Olasılık >= 0.60 ise Yardım Modunu Etkinleştir
+  if (isHelpActive) {
+    applyHelpMode(prob);
+  } else {
+    // Normal oyun davranışı (Yeni başlayan seçilmediyse ipucu kapalı kalır)
+    const hintBadge = document.getElementById('adaptive-hint-badge');
+    if (hintBadge) hintBadge.classList.add('hidden');
+    if (gameState.profile.level !== 'beginner') {
+      const hintBox = document.getElementById('hint-box');
+      if (hintBox) hintBox.classList.add('hidden');
+    }
+    updateTimerUI();
+  }
+}
+
+/**
+ * Yardım Modu: İpucu Göster, Süre Baskısını Kaldır, Sokratik Desteği Güçlendir
+ */
+function applyHelpMode(prob) {
+  // 1. İpucu kutusunu aç ve adaptif rozeti göster
+  const hintBox = document.getElementById('hint-box');
+  const hintText = document.getElementById('hint-box-text');
+  const hintBadge = document.getElementById('adaptive-hint-badge');
+
+  if (hintBox) {
+    hintBox.classList.remove('hidden');
+  }
+  if (hintBadge) {
+    hintBadge.classList.remove('hidden');
+    hintBadge.textContent = `🤖 ADAPTİF YARDIM MODU (%${(prob * 100).toFixed(0)})`;
+  }
+
+  const content = DECISION_CONTENT[gameState.currentState];
+  if (hintText && content) {
+    hintText.textContent = content.hintText;
+  }
+
+  // 2. Süre baskısını kaldır (Deneyimli modda 60sn sayaç durdurulur)
+  stopCountdown();
+  updateTimerUI();
+
+  // 3. Sokratik AI Tutor alanında destekleyici bildirim
+  const tutorStatus = document.getElementById('tutor-status-badge');
+  if (tutorStatus) {
+    tutorStatus.textContent = '💡 Adaptif İpucu Desteği Devrede';
+    tutorStatus.style.color = '#F77F00';
+  }
+}
+
+/**
+ * Geliştirici Panelini Güncelle (Model sürümü, olasılık, eşik, karar)
+ */
+function updateMLDevPanel(prob, isHelpActive) {
+  const probEl = document.getElementById('ml-prob-val');
+  const decisionEl = document.getElementById('ml-decision-val');
+  const threshEl = document.getElementById('ml-threshold-val');
+  const verEl = document.getElementById('ml-model-version');
+
+  if (probEl) {
+    probEl.textContent = `P = ${prob.toFixed(4)}`;
+    probEl.setAttribute('data-value', prob.toFixed(4));
+    probEl.style.color = isHelpActive ? '#F77F00' : '#10B981';
+  }
+
+  if (decisionEl) {
+    decisionEl.textContent = isHelpActive ? 'YARDIM (1)' : 'NORMAL (0)';
+    decisionEl.style.color = isHelpActive ? '#F77F00' : '#10B981';
+  }
+
+  if (threshEl) {
+    threshEl.textContent = `τ = ${gameState.ml.threshold.toFixed(2)}`;
+  }
+
+  if (verEl) {
+    verEl.textContent = `${gameState.ml.config ? gameState.ml.config.model_version : 'v2.0'} (ONNX)`;
+  }
+}
+
+// ============================================================================
 // UYGULAMA BAŞLATMA VE GLOBAL TEST KANCALARI (CYPRESS & EVAL UYUMLULUĞU)
 // ============================================================================
 
@@ -1303,10 +1854,41 @@ window.SEPrimerApp = {
   generateLocalSocraticQuestion,
   classifyTutorResponse,
   restartGame,
-  dismissStepFeedback
+  dismissStepFeedback,
+  // Telemetri Kancaları
+  toggleTelemetryMode,
+  recordHintSelfAssessment,
+  exportTelemetryCSV,
+  clearCollectedTelemetry,
+  // ML Kancaları
+  predictHintNeedProbability,
+  runAdaptiveInferenceStep,
+  updateMLDevPanel
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+  // ML Modelini asenkron olarak arka planda başlat
+  initAdaptiveHintModel();
+
+  if (isTelemetryModeActive()) {
+    gameState.isTelemetryMode = true;
+  }
+  updateTelemetryModeUI();
+
+  // Seçenek kartları üzerine gelme/değiştirme dinleyicisi (tereddüt sayacı)
+  const choiceA = document.getElementById('choice-a');
+  const choiceB = document.getElementById('choice-b');
+  if (choiceA) {
+    choiceA.addEventListener('mouseenter', () => {
+      gameState.currentStepTelemetry.stepHesitationCount += 1;
+    });
+  }
+  if (choiceB) {
+    choiceB.addEventListener('mouseenter', () => {
+      gameState.currentStepTelemetry.stepHesitationCount += 1;
+    });
+  }
+
   transitionToState(STATES.ONBOARDING);
 
   const tutorInput = document.getElementById('tutor-input');

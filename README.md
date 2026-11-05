@@ -1,136 +1,126 @@
-# SE Primer: Yazılım Mühendisliği, Oynanan Bir Kitap
+# SE Primer v2: Yazılım Mühendisliği, Oynanan Bir Kitap
 
 **Ders:** YZM301 Yazılım Gerçekleme ve Test  
-**Uygulama Türü:** Mobil Öncelikli (`430×844`) Tek Sayfalık İnteraktif Karar Oyunu (SPA) & Sonlu Durum Makinesi (FSM)  
+**Uygulama Türü:** Mobil Öncelikli (`430×844`) Tek Sayfalık Karar Oyunu (SPA), Deterministik Durum Makinesi (FSM) & Tarayıcı İçi ONNX Makine Öğrenmesi (WASM)  
 
 ---
 
-## 1. Proje Özeti
+## 1. Projenin Amacı
 
-**SE Primer**, yazılım mühendisliği öğrencilerinin ve genç mühendislerin yüksek stresli üretim (production) krizlerinde aldıkları teknik kararların sonuçlarını deneyimleyerek öğrenmelerini sağlayan, **Sokratik AI Tutor** destekli interaktif bir durum makinesi oyunudur.
+**SE Primer**, yazılım mühendisliği öğrencilerinin ve genç mühendislerin üretim krizlerinde aldıkları teknik, operasyonel ve KVKK kararlarını simüle ederek deneyimlemelerini sağlayan interaktif bir durum makinesi oyunudur.
 
----
-
-## 2. Problem Tanımı
-
-Pazartesi sabahı saat **08:00**'de dün geceki `v2.4.0` sürüm geçişinden sonra hastane randevu sistemi (**MHC-PMS**) çökmüştür. Bankolarda **300 hasta** sırada beklemektedir ve oyuncu nöbetçi yazılım mühendisi rolündedir. Zaman baskısı altında **mimari müdahale (Rollback vs. Hotfix)**, **yayın öncesi doğrulama (Smoke Test)** ve **kişisel sağlık verisi mahremiyeti (KVKK Veri Maskeleme)** kararlarını vererek sistemi saat 08:25 itibarıyla güvenli ve veri sızıntısız şekilde (`ENDING_GOOD`) ayağa kaldırması gerekmektedir.
+Pazartesi sabahı saat **08:00**'de çöken hastane randevu sistemi (**MHC-PMS**, sırada bekleyen **300 hasta**) krizinde oyuncu nöbetçi mühendistir. Zaman baskısı altında **mimari müdahale (`Rollback` vs. `Hotfix`)**, **yayın öncesi doğrulama (`Smoke Test`)** ve **veri mahremiyeti (`KVKK Maskeleme`)** kararlarını verir.
 
 ---
 
-## 3. Özellikler
+## 2. v1 ve v2 Farkı
 
-- **7 Durumlu Deterministik Sonlu Durum Makinesi (FSM):** `ONBOARDING`, `DECISION_1_ARCH`, `DECISION_2_TEST`, `DECISION_3_KVKK`, `ENDING_GOOD`, `ENDING_BAD_KVKK`, `ENDING_CRASH`.
-- **Kişiselleştirilmiş Deneyim:**
-  - **Yeni Başladım (`level-beginner`):** Her karar adımında açık teknik ipucu kutusu (`[data-testid="hint-box"]`) görünür, süre sınırı yoktur.
-  - **Deneyimliyim (`level-experienced`):** Her karar adımında **60 saniyelik geri sayım sayacı** (`[data-testid="countdown-timer"]`) çalışır; süre dolduğunda otomatik olarak panik kararı (`B` seçeneği) tetiklenir.
-  - **Rol Bazlı Telemetri (`Backend`, `DevOps`, `QA`, `Fullstack`):** Kriz ekranındaki terminal logları (`[data-testid="terminal-log"]`) seçilen role göre dinamik üretilir.
-- **"Ne Oldu? Neden Oldu?" Teknik Geri Bildirim Kutusu:** Her karar sonrasında `[data-testid="feedback-box"]` içerisinde seçimin mimari, şema, test ve KVKK açısından teknik sonucu gösterilir.
-- **Çok Katmanlı Guardrail'e Sahip Sokratik AI Tutor:** Oyuncuya asla doğrudan veya dolaylı olarak `A` / `B` şıkkını söylemeyen, retorik evet/hayır tuzaklarından kaçınan ve açık uçlu tek cümlelik karşı sorular üreten mentor mekanizması.
+| Özellik / Boyut | SE Primer v1.0 | SE Primer v2.0 (The Primer v2) |
+| :--- | :--- | :--- |
+| **İpucu Mekanizması** | Statik profil kuralı (Yeni Başlayan = Açık, Deneyimli = Kapalı). | **Dinamik & Adaptif ML Modeli:** Oyuncunun karar süresi, tereddüt (hesitation) ve hata geçmişine göre çıkarım yapar. |
+| **Makine Öğrenmesi** | Yok (Saf kural tabanlı). | **Scikit-Learn Logistic Regression $\rightarrow$ ONNX Web:** $1\times 6$ tensör ile tarayıcıda yerel çıkarım ($P \ge 0.60$ ise yardım modu). |
+| **Süre Baskısı Uyarlaması** | 60 saniye sayaç deneyimli modda daima akar, bitince panik tetikler. | Model ipucu ihtiyacı sezdiğinde **süre baskısı durdurulur / dondurulur**, oyuncuya pedagojik alan açılır. |
+| **Veri Toplama Modu** | Yok. | Anonim UUID tabanlı, sıfır PII/PHI içeren **Veri Toplama Modu** ve CSV dışa aktarma (`data/oturumlar.csv`). |
+| **Doğrulama & Test** | 14 Cypress E2E Testi. | **20 Kapsamlı Test:** 14 E2E Testi + 6 Python Oracle Diferansiyel Parite Testi ($|P_{\text{onnx}} - P_{\text{sklearn}}| < 10^{-4}$). |
+| **Model Dağıtımı** | Yok. | Hugging Face Hub üzerinde **Commit SHA Pinning** ile sabitlenmiş ONNX dağıtımı. |
 
 ---
 
-## 4. Sonlu Durum Makinesi (FSM) Akışı
+## 3. Sistem Mimarisi Şeması
 
-| Mevcut Durum | Seçim / Tetikleyici | Sonraki Durum | Açıklama |
+```text
++-----------------------------------------------------------------------------------+
+|                            SE PRIMER v2 MİMARİSİ                                  |
++-----------------------------------------------------------------------------------+
+|                                                                                   |
+|  [ KULLANICI ETKİLEŞİMİ ]                                                         |
+|         │                                                                         |
+|         ▼                                                                         |
+|  [ Deterministik FSM (app.js) ] ── (Kişiselleştirme: Beginner / Experienced)      |
+|         │                                                                         |
+|         ├──► Telemetri Sayaçları (Karar Süresi, Tereddüt Odaklanması, Hata Sayısı)|
+|         │                                                                         |
+|         ▼                                                                         |
+|  [ Tarayıcı İçi ONNX Runtime Web (lib/ort.min.js) ]                               |
+|         ▲                                                                         |
+|         │ (Model Yükleme: Yerel model/model.onnx veya Hugging Face Commit Pinning)|
+|         │                                                                         |
+|         ▼                                                                         |
+|  [ Olasılık Hesabı: P(ipucu=1) ]                                                  |
+|         │                                                                         |
+|         ├── P >= 0.60 ──► [ ADAPTİF YARDIM MODU ]                                 |
+|         │                 • İpucu Kutusu Açılır ([data-testid="hint-box"])        |
+|         │                 • 60sn Sayaç Dondurulur (Süre baskısı kaldırılır)       |
+|         │                 • Sokratik AI Tutor Desteği Güçlendirilir               |
+|         │                                                                         |
+|         └── P <  0.60 ──► [ NORMAL OYUN AKIŞI ]                                   |
+|                                                                                   |
+|  [ ÇIKARIM DOĞRULAMA KANALI ]                                                     |
+|         │                                                                         |
+|         ├──► [data-cy="p"] Geliştirici Paneli (Canlı P Değeri)                    |
+|         └──► Cypress Parite Testi <─── tests/parite.json <─── Python Oracle       |
+|                                         (Fark < 1e-4)                             |
++-----------------------------------------------------------------------------------+
+```
+
+---
+
+## 4. Veri Toplama Yöntemi ve Şeffaflık
+
+- **Sıfır Kişisel Veri (Zero PII/PHI):** İsim, e-posta, IP, konum veya donanım parmak izi **kesinlikle toplanmaz**.
+- **Anonim Oturum Kimliği:** Her oyun oturumuna RFC 4122 v4 uyumlu rastgele UUID atanır (`crypto.randomUUID()`).
+- **Veri Kaynaklarının Saydam Ayrımı:**
+  - `kaynak='gercek'`: Gerçek oyuncunun web arayüzünde verdiği kararlar (`data/oturumlar.csv`). *Henüz canlı sınıf oturumu yapılmadığı için satır sayısı 0'dır; uydurma veri girilmemiştir.*
+  - `kaynak='sentetik'`: Eğitim amacıyla üretilen 300 satırlık pedagojik senaryo seti (`data/sentetik_dataset.csv`).
+- **Veri Sözlüğü:** Sütun tanımları ve ground truth etiketleme mekanizması [`data/SOZLUK.md`](./data/SOZLUK.md) dosyasında belgelenmiştir.
+
+---
+
+## 5. Model Deposu, Canlı Uygulama ve Bağlantılar
+
+- **Hugging Face Model Deposu:** [https://huggingface.co/Raptor13/se-primer-hint-model](https://huggingface.co/Raptor13/se-primer-hint-model)
+- **Sabitlenmiş Commit SHA:** `657fdf4be40ecfa8cd5bf713f51c10df2de1f4b3`
+- **Sabit Model URL (ONNX):** [https://huggingface.co/Raptor13/se-primer-hint-model/resolve/657fdf4be40ecfa8cd5bf713f51c10df2de1f4b3/model.onnx](https://huggingface.co/Raptor13/se-primer-hint-model/resolve/657fdf4be40ecfa8cd5bf713f51c10df2de1f4b3/model.onnx)
+- **GitHub Kaynak Kodu:** [https://github.com/Zeki-wq/se-primer](https://github.com/Zeki-wq/se-primer) *(Private Depo)*
+- **Canlı Uygulama Adresi:** `[EKLENECEK: GitHub Pages / Vercel canlı bağlantısı]`
+- **Demo Videosu Adresi:** [`cypress/videos/se_primer.cy.js.mp4`](./cypress/videos/se_primer.cy.js.mp4) *(veya harici video linki: `[EKLENECEK]`)*
+
+---
+
+## 6. Kurulum ve Çalıştırma (En Fazla 3 Komut)
+
+Projeyi sıfırdan kurup çalıştırmak ve tüm testleri doğrulamak için **3 komut**:
+
+```bash
+# 1. Bağımlılıkları Kur
+npm install && pip install scikit-learn onnxruntime skl2onnx huggingface_hub
+
+# 2. Modeli Eğit, ONNX Üret ve Oracle Testini Koş
+python train.py
+
+# 3. Tüm Testleri Çalıştır (Python Oracle + Cypress E2E & Parite Testleri)
+npm run test:all
+```
+
+---
+
+## 7. Test Komutları Özeti
+
+- `npm run test:all`: Python Oracle + 14 Cypress E2E + 6 Cypress Parite testinin tamamını tek komutla koşturur.
+- `npm run test:e2e`: Yalnızca 14 temel FSM ve mobil E2E testini çalıştırır.
+- `npm run test:parity`: Yalnızca ONNX Web vs. Python Oracle diferansiyel testini çalıştırır.
+- `npm run oracle`: Python Oracle referans tablosunu (`tests/parite.json`) üretir.
+
+---
+
+## 8. AI Coding Agent Kullanım Beyanı
+
+Bu projenin geliştirilmesinde **Google DeepMind Antigravity AI Pair Programming Agent** kullanılmıştır. Akademik dürüstlük ve teknik şeffaflık gereğince yapay zeka araçlarının kullanım alanları aşağıda beyan edilmiştir:
+
+| Geliştirme Aşaması | Kullanılan AI Aracı | AI Tarafından Üretilen Çıktı | İnsan / Geliştirici Tarafından Elle Kontrol Edilen ve Doğrulanan Alanlar |
 | :--- | :--- | :--- | :--- |
-| `ONBOARDING` | `Nöbete Başla` (`start-btn`) | `DECISION_1_ARCH` | Profil ayarları (İpucu veya 60sn sayaç) yüklenir |
-| `DECISION_1_ARCH` | `A` (Rollback) veya `B` (Hotfix / Timeout) | `DECISION_2_TEST` | Mimari karar kaydedilir ve geri bildirim gösterilir |
-| `DECISION_2_TEST` | `A` (Kısa Smoke Test Koş) | `DECISION_3_KVKK` | Şema ve tablo kilitleri test ortamında doğrulanır |
-| `DECISION_2_TEST` | `B` (Hemen Yayına Al) — *Karar 1 = A ise* | `DECISION_3_KVKK` | Riskli geçiş uyarısıyla KVKK adımına ilerler |
-| `DECISION_2_TEST` | `B` (Hemen Yayına Al) — *Karar 1 = B veya Timeout ise* | `ENDING_CRASH` | **SON C:** Test edilmeyen yama veritabanını bozar |
-| `DECISION_3_KVKK` | `A` (Logdaki Hasta Adını Maskele) | `ENDING_GOOD` | **SON A · İYİ:** Sistem ayakta, veri güvende (`08:25`) |
-| `DECISION_3_KVKK` | `B` (Ekibe Olduğu Gibi At / Timeout) | `ENDING_BAD_KVKK` | **SON B · KÖTÜ:** Sistem ayakta ama KVKK ihlali |
-
----
-
-## 5. Mimari Açıklama
-
-Uygulama harici bir framework veya derleme (build) adımı gerektirmeyen **Vanilla HTML5 + CSS3 + ES6 JavaScript** tek sayfalık uygulama (SPA) mimarisiyle geliştirilmiştir:
-
-- [`index.html`](./index.html): Harici CDN bağımlılığı olmadan çevrimdışı ve headless tarayıcılarda da birebir çalışan gömülü Google Stitch tasarım sistemi ve `data-testid` sözleşmesi.
-- [`app.js`](./app.js): Merkezi `gameState`, durum geçiş motoru (`transitionToState`), yarış durumu (race condition) ve çift tıklama korumalı karar işleyici (`handleDecisionChoice`), tekil zamanlayıcı yöneticisi (`startCountdown`/`stopCountdown`) ve Sokratik AI Tutor guardrail motoru (`enforceSocraticGuardrail`, `classifyTutorResponse`).
-- [`spec.md`](./spec.md): Problem tanımı, Mermaid `stateDiagram-v2` diyagramı ve 5 BDD (`Given/When/Then`) kabul kriteri.
-- [`DESIGN.md`](./DESIGN.md): `430×844` mobil öncelikli renk, tipografi ve bileşen spesifikasyonu.
-- [`TUTOR_EVAL.md`](./TUTOR_EVAL.md): 20 zorlayıcı öğrenci girdisiyle gerçekleştirilen Sokratik AI Tutor değerlendirme ve güven aralığı raporu.
-
----
-
-## 6. Kurulum
-
-Uygulamayı çalıştırmak için herhangi bir kurulum gerekmez; `index.html` doğrudan tarayıcıda açılabilir. Cypress E2E testlerini çalıştırmak için:
-
-```bash
-npm install
-```
-
----
-
-## 7. Çalıştırma
-
-- **Doğrudan Tarayıcıda:** `index.html` dosyasına çift tıklayarak veya herhangi bir statik dosya sunucusuyla açabilirsiniz.
-- **Cypress Arayüzü ile:**
-  ```bash
-  npm run cypress:open
-  ```
-
----
-
-## 8. Test Komutları
-
-Uçtan uca (E2E) Cypress testlerini headless modda çalıştırmak ve demo videosu üretmek için:
-
-```bash
-npm run test:e2e
-# veya doğrudan:
-npx cypress run --spec "cypress/e2e/se_primer.cy.js"
-```
-
----
-
-## 9. Test Sonuçları
-
-[`cypress/e2e/se_primer.cy.js`](./cypress/e2e/se_primer.cy.js) içerisindeki **14 E2E test senaryosu** (İyi Son, Kötü Son/KVKK, Kritik Çöküş, Rollback+Test Atlama, Hotfix+Smoke Test, 60sn Timeout, Restart Temizliği, Rol Bazlı Loglar, Tutor Boş Girdi, Tutor Doğrudan Cevap Reddi, Prompt Injection & 20 Eval Senaryosu, Çift Tıklama Güvenliği, Sayaç/Manuel Seçim Çakışması ve 320px/430px Mobil Viewport) doğrulanmıştır.
-
----
-
-## 10. Tutor Evaluation Özeti (`TUTOR_EVAL.md`)
-
-20 farklı zorlayıcı öğrenci mesajı (doğrudan şık isteme, yanlış teknik varsayım, kararsızlık, prompt injection, system override, otorite baskısı, ters psikoloji ve format zorlama) [`TUTOR_EVAL.md`](./TUTOR_EVAL.md) içinde değerlendirilmiştir:
-- **Guardrail Öncesi Ham Sürüm:** `18 / 20 (%90.0)` başarı (`2` senaryoda retorik/karşılaştırmalı `INDIRECT_LEAK`, %95 Wilson Güven Aralığı: `[%69.9, %97.2]`).
-- **Guardrail Sonrası Final Sürüm (`app.js`):** `20 / 20 (%100.0)` `PASS` (`0` `DIRECT_LEAK`, `0` `INDIRECT_LEAK`, $N=20$ için %95 Wilson Güven Aralığı: `[%83.9, %100.0]`).
-
----
-
-## 11. Güvenlik ve KVKK Yaklaşımı
-
-- **%100 Sentetik Veri:** Uygulama içindeki tüm hasta kayıtları (`SENTETIK_HASTA_01`, `00000000001`) kurgusaldır; hiçbir gerçek kişisel veri veya gerçek T.C. kimlik numarası kullanılmamıştır.
-- **XSS Koruması:** Kullanıcıdan alınan AI Tutor girdileri DOM'a yalnızca `textContent` üzerinden yazılır; kontrolsüz `innerHTML` kullanılmaz.
-- **API Anahtarı Güvenliği (Secret Management):** Uygulama API anahtarı olmadan yerel deterministik Sokratik motorla tam işlevsel çalışır. Kaynak kodda hiçbir API anahtarı bulunmaz. İsteğe bağlı istemci tarafı Gemini API çağrısı yalnızca yerel eğitim/prototip amaçlıdır; **üretim (production) ortamında API anahtarları asla istemci tarafında tutulmamalı ve mutlaka bir Backend Proxy / API Gateway üzerinden yönetilmelidir.**
-
----
-
-## 12. Ürün Kararı: Yapmadığım 3 Özellik (Kapsam Dışı ve Mühendislik Gerekçeleri)
-
-1. **Kullanıcı Hesabı ve Geçmiş Kaydı (Authentication & Persistence):**  
-   Kimlik doğrulama ve veritabanı oturum katmanı eklemek, tek oturumluk (5 dakikalık) pedagojik kriz simülasyonuna başlama sürtünmesini (onboarding friction) artıracağı ve temel öğrenme çıktısına doğrudan katkı sağlamadan gereksiz altyapı karmaşıklığı yaratacağı için durum yönetimi tamamen istemci belleğinde (in-memory FSM) tutulmuştur.
-
-2. **Çok Oyunculu / Ekip İçi Canlı Kriz Simülasyonu (Multiplayer Real-Time Sync):**  
-   WebSocket tabanlı eşzamanlı çok oyunculu senkronizasyon, oyuncunun bireysel mühendislik muhakemesini ve Sokratik AI Tutor ile kurduğu birebir sorgulama döngüsünü dış bağımlılıklara (eşleşecek diğer oyuncuların gecikmesine) mahkûm edeceği için deterministik tek oyunculu durum makinesi tercih edilmiştir.
-
-3. **Gerçek Sunucu / Veritabanı Terminali Entegrasyonu (Live Sandbox Shell Execution):**  
-   Kullanıcıya tarayıcı üzerinden gerçek konteyner veya SQL kabuğu açmak ciddi uzaktan kod çalıştırma (RCE) güvenlik zafiyetleri, yüksek bulut maliyeti ve kararsız (flaky) E2E test sonuçları doğuracağından, öngörülebilir ve milisaniyelik tepki veren sentetik telemetri log simülasyonu kullanılmıştır.
-
----
-
-## 13. Bilinen Kısıtlar
-
-- Uygulama durumu tarayıcı belleğinde (`window.SEPrimerApp.gameState`) tutulduğundan sayfa yenilendiğinde (`F5`) oyun `ONBOARDING` durumuna döner.
-- İsteğe bağlı canlı LLM entegrasyonu kullanılmadığında yanıtlar yerel deterministik Sokratik soru havuzundan üretilir.
-
----
-
-## 14. Proje Ekran Görüntüleri ve Bağlantılar
-
-- **Proje Ekran Görüntüleri:** Cypress test koşusu sırasında veya tarayıcıda `430×844` mobil görünümde incelenebilir (`cypress/screenshots/` / `[EKLENECEK]`).
-- **60 Saniyelik Demo Videosu:** [`cypress/videos/se_primer.cy.js.mp4`](./cypress/videos/se_primer.cy.js.mp4) (Cypress E2E test koşusu sırasında kaydedilen gerçek MP4 videosu)
-- **GitHub Repository Bağlantısı:** [https://github.com/Zeki-wq/se-primer](https://github.com/Zeki-wq/se-primer) *(Özel / Private Depo)*
+| **Spesifikasyon & FSM Tasarımı** | Antigravity (Gemini 3.8 Flash) | `spec.md` taslağı ve Mermaid.js `stateDiagram-v2` şeması. | Kriz senaryosu pedagojisi, 3 farklı sonun deterministik geçiş kuralları ve BDD kabul kriterleri elle incelendi ve onaylandı. |
+| **Ön Yüz & FSM Kodlaması** | Antigravity Agent | `index.html` ve `app.js` Vanilla JS mimarisi. | `isTransitioning` çift tıklama kilidi, mobil `430×844` viewport CSS'i ve sentetik KVKK veri maskelemesi satır satır denetlendi. |
+| **Makine Öğrenmesi & ONNX** | Antigravity Agent | `train.py`, `skl2onnx` export pipeline ve `config.json`. | Özellik sırası, L2 regülarizasyon parametresi, stratified train/test split tohumu (`random_state=42`) ve F1 eşiği ($F_1 \ge 0.70$) elle doğrulandı. |
+| **Diferansiyel Test & Parite** | Antigravity Agent | `tests/parite.py` ve `cypress/e2e/se_primer_parity.cy.js`. | Python Oracle ile tarayıcı arasındaki $< 10^{-4}$ tolerans formülasyonu ve referans senaryoların uç durumları (edge-cases) elle kontrol edildi. |
+| **Dağıtım & Güvenlik** | Antigravity Agent | `push_model.py` ve `RELEASE.md`. | API tokenının kaynak kodda yer almaması, ortam değişkeninden okunması ve Hugging Face commit sabitlemesi (commit pinning) bizzat test edilerek doğrulandı. |

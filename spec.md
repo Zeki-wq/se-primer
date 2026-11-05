@@ -108,7 +108,7 @@ Projenin YZM301 dersi kapsam sınırlarını ve deterministik test edilebilirli�
 
 ---
 
-## 6. Beş Kabul Örneği (Acceptance Criteria — Given / When / Then)
+## 6. Beş Temel Kabul Örneği (Acceptance Criteria — Given / When / Then)
 
 ### Kabul Kriteri 1: Yeni Başlayan Modunda İpucu Kutusunun Açık Gelmesi ve İyi Sona (`ENDING_GOOD`) Ulaşılması
 - **Given (Verildiğinde):** Oyuncu `ONBOARDING` ekranında `[data-testid="level-beginner"]` ("Yeni Başladım") seçip `[data-testid="start-btn"]` butonuna tıkladığında,
@@ -134,3 +134,64 @@ Projenin YZM301 dersi kapsam sınırlarını ve deterministik test edilebilirli�
 - **Given (Verildiğinde):** Oyuncu `"Deneyimliyim"` (`[data-testid="level-experienced"]`) modunda `DECISION_1_ARCH` ekranındayken 60 saniyelik geri sayım sayacı (`[data-testid="countdown-timer"]`) çalışmaya başladığında,
 - **When (Olduğunda):** Oyuncu 60 saniye boyunca hiçbir seçim yapmayıp sayaç `0` değerine ulaştığında,
 - **Then (O zaman):** Sistem otomatik olarak panik kararını (riskli seçenek `B` — Hotfix) seçmiş saymalı, `[data-testid="feedback-box"]` içinde süre aşımı bilgisini göstermeli ve durumu `DECISION_2_TEST` adımına ilerletmelidir.
+
+---
+
+## 7. The Primer v2: Makine Öğrenmesi (ML) Destekli Adaptif İpucu Modeli
+
+SE Primer v2 kapsamında sisteme, oyuncunun kriz sırasındaki etkileşim dinamiklerini analiz eden ve oyuncunun bir sonraki adımda veya karar anında desteğe/ipucuna ihtiyaç duyup duymadığını tahmin eden hafif bir makine öğrenmesi (ML) modeli entegre edilmiştir.
+
+### 7.1. Modelin Amacı ve FSM Akışıyla Etkileşimi
+- **Modelin Hedefi:** Oyuncunun telemetri verilerine göre `ipucu_gerekti` (0: İpucu gerekmez / 1: İpucu gerekir) olasılığını hesaplamak.
+- **FSM Bütünlüğü Prensibi:** Model kararı **asla mevcut FSM akışını, durum geçişlerini veya karar seçeneklerini (`choice-a`, `choice-b`) değiştirmez**. Modelin tek görevi arayüzdeki destek seviyesini dinamik olarak uyarlamak, adaptif ipucu önerisini (`[data-testid="adaptive-hint-badge"]` / `[data-testid="hint-box"]`) devreye sokmak ve Sokratik Tutor'un scaffolding (destekleme) tonunu ayarlamaktır.
+
+### 7.2. Model Özellikleri (Feature Set) ve Hedef Değişkeni
+
+Model 6 temel davranışsal öznitelik (özellik) üzerinde çalışır:
+
+| # | Özellik Adı (Feature) | Veri Tipi | Değer Aralığı / Açıklama |
+| :-: | :--- | :--- | :--- |
+| 1 | `seviye` | `int` | Oyuncunun beyan ettiği başlangıç seviyesi (`0`: Yeni Başlayan, `1`: Orta Seviye, `2`: Deneyimli) |
+| 2 | `karar_suresi_sn` | `float` | Karar ekranına giriş anı ile seçim anı/çıkarım anı arasında geçen süre (saniye cinsinden) |
+| 3 | `onceki_yanlis_sayisi` | `int` | Önceki adımlarda seçilen yüksek riskli (`B` / Hotfix, Hemen Yayına Al, Maskesiz Log) karar sayısı |
+| 4 | `ipucu_sayisi` | `int` | Oyuncunun o ana kadar doğrudan veya tutor üzerinden talep ettiği/görüntülediği ipucu adedi |
+| 5 | `sahne_no` | `int` | FSM içindeki aktif karar aşaması (`1`: Mimari, `2`: Test, `3`: KVKK) |
+| 6 | `karar_degistirme_sayisi` | `int` | Oyuncunun karar vermeden önce butonlar üzerinde yaptığı odaklanma/seçim değiştirme (hesitation) sayısı |
+
+- **Hedef Sütunu (`target`):** `ipucu_gerekti` (`0`: İpucu gerekmiyor, `1`: İpucu gerekiyor).
+- **İpucu Verme Karar Eşiği (Threshold):** $\tau = 0.60$. Modelin `P(ipucu_gerekti = 1) \ge 0.60$ ürettiği durumlarda adaptif destek tetiklenir.
+
+### 7.3. Eğitim Öncesi Kabul Kriterleri ve Değerlendirme (Evaluation) Metrikleri
+
+Model eğitimi ve dışa aktarımı gerçekleştirilmeden önce aşağıdaki teknik kabul eşikleri karşılanmalıdır:
+
+1. **Bölme Yöntemi:** Stratified Train/Test Split (hedef sınıf dağılımı eğitim ve test kümelerinde korunacaktır).
+2. **Tekrarlanabilirlik:** Sabit tohum (`random_state=42`).
+3. **Ana Metrik ve Kabul Eşiği:** Modelin dengesizliği yönetebilmesi için ana değerlendirme metriği **F1-Score** olarak belirlenmiştir. Test kümesinde kabul kriteri:
+   $$\text{Macro } F_1 \ge 0.70 \quad \text{veya} \quad F_1(\text{Sınıf 1}) \ge 0.70$$
+4. **ONNX & Scikit-Learn Sayısal Eşdeğerlik (Oracle Doğrulaması):**
+   Eğitilen `LogisticRegression` modeli `skl2onnx` ile ONNX formatına dönüştürüldüğünde, aynı test girdileri için Python Scikit-Learn `predict_proba` çıktısı ile ONNX Runtime `predict_proba` çıktısı arasındaki mutlak olasılık farkı kesinlikle $10^{-4}$ değerinden küçük olmalıdır:
+   $$|P_{\text{sklearn}} - P_{\text{onnx}}| < 1 \times 10^{-4} \quad (\forall x \in X_{\text{test}})$$
+
+### 7.4. Veri Seti Kısıtları: Gerçek ve Sentetik Veri Ayrımı
+- **Sentetik Veri Zorunluluğu:** SE Primer bir öğrenci simülasyon projesidir ve KVKK/GDPR gereğince üçüncü şahıslardan izinsiz gerçek kullanıcı davranış telemetrisi toplanmamıştır. Eğitimde kullanılan veri seti, eğitim bilimi (pedagoji) ve yazılım mühendisliği kriz kurallarına dayalı deterministik kurallarla üretilmiş **sentetik veri setidir**.
+- **Küçük Veri Setinin Sınırlamaları:** Eğitim veri seti sınırlı örneklem büyüklüğüne ($N \approx 200 - 500$) sahip olduğundan, aşırı öğrenmeyi (overfitting) önlemek amacıyla karmaşık derin öğrenme mimarileri yerine doğrusal, yorumlanabilir ve L2 regülarizasyonlu **Scikit-learn Logistic Regression** modeli tercih edilmiştir. Modelin genelleme yeteneği bu sentetik kriz dinamikleri çerçevesinde geçerlidir.
+
+---
+
+## 8. The Primer v2: Üç Yeni Kabul Örneği (ML Given / When / Then)
+
+### Kabul Kriteri 6: Uzun Süre Tereddüt Eden ve Yanlış Karar Geçmişi Olan Oyuncu (İpucu Tetiklenir)
+- **Given (Verildiğinde):** Oyuncu `DECISION_2_TEST` (`sahne_no: 2`) aşamasındadır, `DECISION_1_ARCH` aşamasında riskli seçim yapmıştır (`onceki_yanlis_sayisi: 1`), seviyesi yeni başlayan (`seviye: 0`) veya orta seviyedir,
+- **When (Olduğunda):** Karar ekranında 35 saniyeden uzun süre tereddüt edip (`karar_suresi_sn: 38.5`) seçenekler arasında kararsız kaldığında (`karar_degistirme_sayisi: 3`),
+- **Then (O zaman):** Adaptif ONNX modeli $\ge 0.60$ olasılıkla `ipucu_gerekti = 1` tahmini üretmeli, mevcut FSM durumu bozulmadan arayüzde oyuncuya özel adaptif rehberlik kartı (`[data-testid="adaptive-hint-badge"]` veya açık `hint-box`) gösterilmeli ve Sokratik Tutor daha yönlendirici bir teknik ipucu sorusu sormalıdır.
+
+### Kabul Kriteri 7: Hızlı ve Doğru Karar Veren Deneyimli Oyuncu (İpucu Bastırılır)
+- **Given (Verildiğinde):** Oyuncu `level-experienced` (`seviye: 2`) seçmiş olup `DECISION_2_TEST` veya `DECISION_3_KVKK` aşamasındadır, önceki tüm adımları hatasız geçmiştir (`onceki_yanlis_sayisi: 0`),
+- **When (Olduğunda):** Kararını 8 saniye gibi kısa bir sürede (`karar_suresi_sn: 7.8`), hiç tereddüt etmeden (`karar_degistirme_sayisi: 0`) verdiğinde,
+- **Then (O zaman):** Modelin hesapladığı ipucu olasılığı eşiğin çok altında kalmalı ($P < 0.60 \rightarrow \text{ipucu\_gerekti} = 0$), ekranda gereksiz ipucu kutusu açılmamalı ve 60 saniyelik sayaç kesintisiz akmaya devam etmelidir.
+
+### Kabul Kriteri 8: Kararlarını Sık Sık Değiştiren Oyuncu (Tereddüt Sebebiyle Destek Devreye Girer)
+- **Given (Verildiğinde):** Oyuncu `DECISION_3_KVKK` (`sahne_no: 3`) aşamasındadır ve seviyesi orta (`seviye: 1`) veya deneyimlidir,
+- **When (Olduğunda):** Karar butonları arasında en az 4 kez gidip gelerek (`karar_degistirme_sayisi: 4`) ve 25 saniye harcayarak karar vermekte zorlandığında,
+- **Then (O zaman):** Karar değiştirme ve sahne zorluğu ağırlığı sayesinde model ipucu olasılığını $\ge 0.60$ hesaplamalı, FSM akışını ve sayacı sıfırlamadan Sokratik AI Tutor alanında veritabanı loglarındaki maskeleme ilkelerini hatırlatan odaklanmış bir ipucu desteği belirmelidir.
